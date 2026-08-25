@@ -20,6 +20,7 @@ export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
         (Date.now() / 1000 - (status.ais.last_poll || 0) < 90 ? 'live' : 'stale')
     }
     if (key === 'met') {
+      if (status.met?.error) return 'down'
       return status.met?.ready &&
         Date.now() / 1000 - (status.met.last_refresh || 0) < 7200 ? 'live' : 'stale'
     }

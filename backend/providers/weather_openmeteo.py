@@ -139,8 +139,13 @@ class MetProvider:
 
     async def run(self) -> None:
         while True:
-            await self.refresh()
-            await asyncio.sleep(self.settings.met_refresh_seconds)
+            ok = await self.refresh()
+            if ok:
+                await asyncio.sleep(self.settings.met_refresh_seconds)
+            else:
+                # transient failure (rate limit / timeout): retry soon instead
+                # of leaving the dashboard without fields for a full hour
+                await asyncio.sleep(60)
 
     # -- status ---------------------------------------------------------------
     def status(self) -> dict:
