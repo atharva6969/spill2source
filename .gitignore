@@ -1,0 +1,25 @@
+# ---- secrets (never commit) ----
+.env
+
+# ---- runtime data: AIS history, scenes (~GB), datasets, models ----
+# everything here is regenerable via scripts/ (see README)
+data/
+
+# ---- frontend ----
+frontend/node_modules/
+frontend/dist/
+
+# ---- python ----
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# ---- local tooling ----
+.claude/
+
+# ---- OS / editor noise ----
+Thumbs.db
+.DS_Store
+~$*
+*.tmp
