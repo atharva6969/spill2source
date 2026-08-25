@@ -7,8 +7,7 @@ release point and time** (and forecasts its drift forward); then ranks the
 **suspect vessels** that were around the release point at the release moment,
 with per-factor evidence.
 
-**100 % real data — no synthetic inputs anywhere.** Every number in the UI
-comes from a live feed at the moment you look at it.
+ Every number in the UI comes from a live feed at the moment you look at it.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -173,15 +172,7 @@ Covers drift-model transport physics (uniform-current advection speed), local
 frame round-trip, backward-origin sanity, scorer monotonicity (closer/stationary
 tanker outranks distant transiting cargo), dark-gap evidence, score bounds.
 
-## Honest limitations
-* Attribution is **probabilistic evidence ranking**, not proof — real enforcement
-  needs sample collection, bunker records, etc.
-* AIS gaps also occur from coastal coverage shadowing; the gap factor is
-  deliberately weighted modestly.
-* Open-Meteo currents are ~8 km resolution — fine for Gulf-scale hindcasts,
-  coarse for coastal pockets.
-* The detector's day-1 prior is calibrated for C-band IW GRD VV/VH Baltic
-  conditions; retrain on labelled data for other basins.
+
 
 ## Data source credits
 Copernicus Data Space Ecosystem (Sentinel-1), Finnish Transport Infrastructure
