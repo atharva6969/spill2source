@@ -330,6 +330,56 @@ body {
 .stops { list-style: none; margin: 0 14px 10px; padding: 0; font-size: 11px; }
 .stops li { padding: 3px 0; border-top: 1px dashed var(--line); }
 
+/* ---------- chart key (legend) ---------- */
+.map-legend {
+  position: absolute; left: 12px; bottom: 40px; z-index: 800;
+  background: rgba(7, 19, 32, .88); border: 1px solid var(--line);
+  padding: 8px 11px; font-size: 11px; color: var(--foam);
+  display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+}
+.map-legend .lg-title {
+  font-family: 'Barlow Condensed'; letter-spacing: .14em; font-size: 11px;
+  color: var(--amber); margin-bottom: 2px;
+}
+.map-legend > div { display: flex; align-items: center; gap: 7px; }
+.map-legend .sw { width: 16px; height: 10px; flex: none; display: inline-block; }
+.map-legend .sw.slick { background: rgba(255, 92, 56, .45); border: 1.5px solid #FF5C38; }
+.map-legend .sw.origin { width: 9px; height: 9px; border: 1.5px solid var(--amber); border-radius: 50%; }
+.map-legend .sw.back { border-top: 2px dashed var(--amber); height: 0; }
+.map-legend .sw.fwd { border-top: 2px dashed var(--cyan); height: 0; }
+.map-legend .sw.ais { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); }
+.map-legend .sw.suspect { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--amber); }
+
+/* permanent on-map labels */
+.leaflet-tooltip.map-label {
+  background: rgba(7, 19, 32, .92); border: 1px solid var(--line);
+  color: var(--foam); font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; padding: 2px 7px; border-radius: 0;
+  box-shadow: none;
+}
+.leaflet-tooltip.map-label::before { display: none; }
+
+/* vessel-at-release marker */
+.at-release { display: flex; align-items: center; white-space: nowrap; }
+.at-release .at-dot {
+  width: 12px; height: 12px; flex: none;
+  border: 2.5px solid var(--amber); border-radius: 50%;
+  background: rgba(242, 178, 62, .35);
+  box-shadow: 0 0 8px rgba(242, 178, 62, .8);
+}
+.at-release .at-lbl {
+  background: rgba(7, 19, 32, .92); border: 1px solid var(--amber);
+  color: var(--amber); font-size: 10px; padding: 2px 7px; margin-left: 5px;
+}
+
+/* locate-at-release button on suspect rows */
+.locate-btn {
+  appearance: none; cursor: pointer; text-align: left;
+  background: none; border: 1px dashed var(--line); color: var(--dim);
+  font-size: 10px; letter-spacing: .06em; padding: 3px 8px; margin: 2px 12px 6px 40px;
+}
+.locate-btn:hover { color: var(--amber); border-color: var(--amber); }
+
 /* ---------- toast ---------- */
 .toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);

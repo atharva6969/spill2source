@@ -75,13 +75,39 @@ export default function MapView({ vessels, slicks, detail, vesselMmsi,
     if (mapRef.current._trackLine) {
       lg.removeLayer(mapRef.current._trackLine)
       lg.removeLayer(mapRef.current._trackStart)
+      if (mapRef.current._trackAt) lg.removeLayer(mapRef.current._trackAt)
+      mapRef.current._trackAt = null
     }
     mapRef.current._trackLine = L.polyline(ll, {
       color: C.amber, weight: 2.5, opacity: 0.9, dashArray: '6 5',
-    }).addTo(lg).bindTooltip(`Track MMSI ${tr.mmsi}`)
+    }).addTo(lg).bindTooltip(tr.name ? `Track · ${tr.name}` : `Track MMSI ${tr.mmsi}`)
     mapRef.current._trackStart = L.circleMarker(ll[0], {
       radius: 4, color: C.amber, fillColor: C.amber, fillOpacity: 1,
     }).addTo(lg)
+
+    // "where was this vessel at the estimated release moment?"
+    if (tr.highlight_ts != null) {
+      let best = null
+      for (const p of tr.points) {
+        if (best == null || Math.abs(p[2] - tr.highlight_ts) < Math.abs(best[2] - tr.highlight_ts)) {
+          best = p
+        }
+      }
+      if (best) {
+        const t = new Date(tr.highlight_ts * 1000)
+        const hhmm = `${String(t.getUTCHours()).padStart(2, '0')}:${String(t.getUTCMinutes()).padStart(2, '0')} UTC`
+        const label = tr.name || `MMSI ${tr.mmsi}`
+        mapRef.current._trackAt = L.marker([best[1], best[0]], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div class="at-release"><span class="at-dot"></span><span class="at-lbl mono">${label} · at release ${hhmm}</span></div>`,
+            iconSize: [0, 0], iconAnchor: [0, 0],
+          }),
+        }).addTo(lg)
+        mapRef.current.flyTo([best[1], best[0]], 10, { duration: 1.2 })
+        return
+      }
+    }
     mapRef.current.fitBounds(L.latLngBounds(ll), { padding: [40, 40], maxZoom: 11 })
   }
 
@@ -180,16 +206,24 @@ export default function MapView({ vessels, slicks, detail, vesselMmsi,
 
     if (bw?.path?.centroid_path?.length) {
       const pts = bw.path.centroid_path.map((p) => [p[1], p[0]])
-      L.polyline(pts, {
+      const line = L.polyline(pts, {
         color: C.amber, weight: 2, dashArray: '2 7', opacity: 0.9,
-      }).bindTooltip('Hindcast drift path (backward)', { sticky: true }).addTo(grp)
+      }).addTo(grp)
+      line.bindTooltip('Backward drift path — traced to release', {
+        permanent: true, direction: 'right', offset: [6, 0],
+        className: 'map-label',
+      })
     }
     if (fw?.path?.centroid_path?.length && fw.path.centroid_path.some((p) => p[0] != null)) {
       const pts = fw.path.centroid_path.filter((p) => p[0] != null)
         .map((p) => [p[1], p[0]])
-      L.polyline(pts, {
+      const line = L.polyline(pts, {
         color: C.cyan, weight: 2, dashArray: '9 6', opacity: 0.85,
-      }).bindTooltip('Forecast drift path', { sticky: true }).addTo(grp)
+      }).addTo(grp)
+      line.bindTooltip('Forward forecast — predicted drift', {
+        permanent: true, direction: 'right', offset: [6, 0],
+        className: 'map-label',
+      })
     }
     if (fw?.cone?.length) {
       for (const c of fw.cone.filter((k) => k.lon != null)) {
@@ -198,6 +232,16 @@ export default function MapView({ vessels, slicks, detail, vesselMmsi,
           opacity: 0.28, fill: false,
         }).addTo(grp)
       }
+    }
+    if (detail.geometry?.geometry?.coordinates) {
+      const ring = detail.geometry.geometry.coordinates[0]
+      const ll = ring.map((c) => [c[1], c[0]])
+      L.polygon(ll, {
+        color: C.spill, weight: 2.4, opacity: 1,
+        fillColor: C.spill, fillOpacity: 0.45,
+      }).bindTooltip('Detected slick footprint (Sentinel-1)', {
+        permanent: true, direction: 'top', className: 'map-label',
+      }).addTo(grp)
     }
     if (bw && bw.origin_lon != null) {
       const icon = L.divIcon({
@@ -209,8 +253,9 @@ export default function MapView({ vessels, slicks, detail, vesselMmsi,
       })
       L.marker([bw.origin_lat, bw.origin_lon], { icon })
         .bindTooltip(
-          `Estimated release point<br/>σ ≈ ${bw.origin_sigma_km.toFixed(1)} km`,
-          { direction: 'top', offset: [0, -14] })
+          `Estimated release point — σ ≈ ${bw.origin_sigma_km.toFixed(1)} km`,
+          { permanent: true, direction: 'top', offset: [0, -26],
+            className: 'map-label' })
         .addTo(grp)
     }
 
@@ -236,6 +281,17 @@ export default function MapView({ vessels, slicks, detail, vesselMmsi,
   return (
     <div className="map-wrap">
       <div ref={boxRef} className="map" />
+
+      <div className="map-legend">
+        <div className="lg-title">CHART KEY</div>
+        <div><span className="sw slick" /> detected slick (Sentinel-1)</div>
+        <div><span className="sw origin" /> estimated release point</div>
+        <div><span className="sw back" /> backward drift (hindcast)</div>
+        <div><span className="sw fwd" /> forward forecast + cone</div>
+        <div><span className="sw ais" /> live AIS vessel</div>
+        <div><span className="sw suspect" /> ranked suspect</div>
+      </div>
+
       {riskOn && (
         <div className="risk-legend">
           <span>spill risk</span>

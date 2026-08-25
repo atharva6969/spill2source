@@ -7,6 +7,7 @@ const FACTOR_LABEL = {
   ais_gap: 'AIS silence (dark event)',
   type_prior: 'Vessel-class prior',
   course_align: 'Course vs slick axis',
+  behavior_prior: 'Behaviour history',
 }
 
 function utc(ts) {
@@ -36,6 +37,24 @@ export default function SlickDetail({ detail, selectedSlickId, onSelectVessel,
   const bw = detail.backward
   const fw = detail.forward
   const suspects = detail.suspects || []
+
+  // "where was this vessel at the estimated release moment?" — pull a
+  // ±3 h track window around the hindcast release and highlight the fix
+  // nearest to it on the chart
+  const locateAtRelease = (s) => {
+    const rel = bw?.release_time
+    if (!rel) return
+    const qs = `from_ts=${rel - 3 * 3600}&to_ts=${rel + 3 * 3600}`
+    fetch(`/api/vessels/${s.mmsi}/track?${qs}`)
+      .then((r) => r.json())
+      .then((tr) => {
+        if (!tr.points?.length) return
+        window.dispatchEvent(new CustomEvent('vessel-track', {
+          detail: { ...tr, highlight_ts: rel, name: s.name || `MMSI ${s.mmsi}` },
+        }))
+      })
+      .catch(() => {})
+  }
 
   return (
     <aside className="panel right">
@@ -102,6 +121,16 @@ export default function SlickDetail({ detail, selectedSlickId, onSelectVessel,
                 </span>
                 <b className="mono score-num">{s.score.toFixed(0)}</b>
               </span>
+            </button>
+
+            <button
+              className="locate-btn mono"
+              title="Show where this vessel was at the estimated release moment"
+              onClick={(e) => {
+                e.stopPropagation()
+                locateAtRelease(s)
+              }}>
+              ⌖ at release
             </button>
 
             {openRow === s.mmsi && (

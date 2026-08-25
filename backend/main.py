@@ -69,10 +69,17 @@ async def vessels_live():
 
 
 @app.get("/api/vessels/{mmsi}/track")
-async def vessel_track(mmsi: int, hours: float = 12):
-    rows = store.query(
-        "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? AND ts>? "
-        "ORDER BY ts", (mmsi, __import__("time").time() - hours * 3600))
+async def vessel_track(mmsi: int, hours: float = 12,
+                       from_ts: float | None = None, to_ts: float | None = None):
+    if from_ts is not None and to_ts is not None:
+        rows = store.query(
+            "SELECT ts,lon,lat,sog,cog FROM ais_positions "
+            "WHERE mmsi=? AND ts BETWEEN ? AND ? ORDER BY ts",
+            (mmsi, from_ts, to_ts))
+    else:
+        rows = store.query(
+            "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? AND ts>? "
+            "ORDER BY ts", (mmsi, __import__("time").time() - hours * 3600))
     return {"mmsi": mmsi, "points": [
         [r["lon"], r["lat"], r["ts"], r["sog"], r["cog"]] for r in rows]}
 
