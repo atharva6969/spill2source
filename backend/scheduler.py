@@ -187,7 +187,14 @@ class System:
         if not slick:
             raise ValueError("unknown slick id")
         if self.fields is None:
-            return {"ok": False, "reason": "met_fields_not_ready"}
+            # met fields not cached yet (e.g. analysis requested right after
+            # boot) - fetch them on demand instead of failing
+            ok = await self.met.refresh()
+            if ok:
+                self.fields = FieldSet(self.met)
+        if self.fields is None:
+            return {"ok": False, "reason": "met_fields_not_ready",
+                    "error": self.met.error}
         from shapely.geometry import shape
         gj = json.loads(slick["geometry"])
         poly = shape(gj["geometry"])

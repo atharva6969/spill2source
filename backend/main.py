@@ -153,7 +153,11 @@ async def slick_detail(slick_id: int):
 async def reanalyze_slick(slick_id: int):
     res = await system.analyze_slick(slick_id)
     if not res.get("ok"):
-        raise HTTPException(400, res.get("reason"))
+        reason = res.get("reason", "unknown")
+        detail = {"met_fields_not_ready":
+                  "met-ocean fields are still loading - try again in a minute"
+                  }.get(reason, reason)
+        raise HTTPException(503, detail)
     return res
 
 
