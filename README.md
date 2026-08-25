@@ -8,7 +8,7 @@ release point and time** (and forecasts its drift forward); then ranks the
 with per-factor evidence.
 
  Every number in the UI comes from a live feed at the moment you look at it.
-
+ 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  LIVE FEEDS                                                          │
