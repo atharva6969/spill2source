@@ -78,6 +78,15 @@ class AisProvider:
         self.last_count = len(rows)
         self.total_inserted += max(inserted, 0)
         self.error = None
+        # M9: prune vessels not seen in this poll and older than 30 min
+        seen = {int(r[0]) for r in rows}
+        stale_cutoff = time.time() - 1800
+        departed = [m for m, v in self.latest.items()
+                    if m not in seen and v["ts"] < stale_cutoff]
+        for m in departed:
+            del self.latest[m]
+        if departed:
+            log.info("AIS: pruned %d departed vessels from live cache", len(departed))
         log.info("AIS poll: %d in-AOI positions, %d new rows", len(rows), inserted)
         return inserted
 

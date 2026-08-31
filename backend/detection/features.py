@@ -88,13 +88,15 @@ def _glcm_homogeneity(crop: np.ndarray, cmask: np.ndarray,
         return 0.5
     lo, hi = np.nanpercentile(vals, [2, 98])
     q = np.clip((crop - lo) / max(hi - lo, 1e-6), 0, 1)
-    qi = (q * (levels - 1)).astype(np.int32)
-    h, w = qi.shape
+    finite = np.isfinite(q)
+    qi = np.zeros(q.shape, dtype=np.int32)
+    qi[finite] = (q[finite] * (levels - 1)).astype(np.int32)
     glcm = np.zeros((levels, levels))
     a = qi[:, :-offset].ravel()
     b = qi[:, offset:].ravel()
-    m = np.isfinite(a) & np.isfinite(b)
-    np.add.at(glcm, (a[m].astype(int), b[m].astype(int)), 1)
+    # only count pairs where BOTH pixels were finite (NaN cast to int is junk)
+    m = finite[:, :-offset].ravel() & finite[:, offset:].ravel()
+    np.add.at(glcm, (a[m], b[m]), 1)
     if glcm.sum() == 0:
         return 0.5
     glcm /= glcm.sum()

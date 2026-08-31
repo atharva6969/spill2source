@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
 const LEDS = [
-  { key: 'ais', label: 'AIS FEED' },
-  { key: 'met', 'label': 'MET-OCEAN' },
-  { key: 'sat', label: 'SENTINEL-1' },
+  { key: 'ais', label: 'AIS TRAFFIC', desc: 'Live AIS vessel data' },
+  { key: 'met', label: 'MET-OCEAN', desc: 'Wind & wave fields' },
+  { key: 'sat', label: 'SENTINEL-1 SAR', desc: 'Copernicus radar imagery' },
 ]
 
 export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
@@ -14,51 +14,87 @@ export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
   }, [])
 
   const ledState = (key) => {
-    if (!status) return 'idle'
+    if (!status) return { state: 'idle', label: 'CONNECTING' }
     if (key === 'ais') {
-      return status.ais?.error ? 'down' :
-        (Date.now() / 1000 - (status.ais.last_poll || 0) < 90 ? 'live' : 'stale')
+      if (status.ais?.error) return { state: 'down', label: 'OFFLINE' }
+      const isLive = Date.now() / 1000 - (status.ais?.last_poll || 0) < 90
+      return isLive ? { state: 'live', label: 'ONLINE' } : { state: 'stale', label: 'DELAYED' }
     }
     if (key === 'met') {
-      if (status.met?.error) return 'down'
-      return status.met?.ready &&
-        Date.now() / 1000 - (status.met.last_refresh || 0) < 7200 ? 'live' : 'stale'
+      if (status.met?.error) return { state: 'down', label: 'ERROR' }
+      const isReady = status.met?.ready && Date.now() / 1000 - (status.met.last_refresh || 0) < 7200
+      return isReady ? { state: 'live', label: 'READY' } : { state: 'stale', label: 'STALE' }
     }
     if (key === 'sat') {
-      return status.cdse_configured ? 'live' : 'idle'
+      return status.cdse_configured
+        ? { state: 'live', label: 'ACTIVE' }
+        : { state: 'idle', label: 'PUBLIC' }
     }
-    return 'idle'
+    return { state: 'idle', label: 'STANDBY' }
   }
 
-  const fmt = (d) =>
+  const fmtTime = (d) =>
     `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}`
+
+  const fmtDate = (d) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric', timeZone: 'UTC' }).toUpperCase()
 
   return (
     <header className="hdr">
       <div className="brand">
-        <span className="brand-mark" aria-hidden="true" />
-        <div>
-          <h1>SLICKTRACE</h1>
-          <p>Gulf of Finland · live oil-spill watch</p>
+        <div className="brand-logo" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
+            <circle cx="12" cy="12" r="5" strokeOpacity="0.7" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" strokeOpacity="0.5" />
+          </svg>
+        </div>
+        <div className="brand-text">
+          <div className="brand-title-row">
+            <h1>SLICKTRACE</h1>
+            <span className="system-tag">SENTINEL-1 MONITOR</span>
+          </div>
+          <p>Gulf of Finland · Automated SAR Spill Detection & AIS Attribution</p>
         </div>
       </div>
-      <nav className="leds" aria-label="pipeline status">
-        {LEDS.map((l) => (
-          <div key={l.key} className={`led ${ledState(l.key)}`}>
-            <span className="dot" aria-hidden="true" />
-            {l.label}
-          </div>
-        ))}
+
+      <nav className="leds" aria-label="System Data Feeds">
+        {LEDS.map((l) => {
+          const { state, label } = ledState(l.key)
+          return (
+            <div key={l.key} className={`led ${state}`} title={`${l.desc} (${label})`}>
+              <span className="dot" aria-hidden="true" />
+              <span className="led-name">{l.label}</span>
+              <span className="led-status mono">{label}</span>
+            </div>
+          )
+        })}
       </nav>
-      <button
-        className={`risk-toggle ${riskOn ? 'on' : ''}`}
-        onClick={onToggleRisk}
-        title={riskStatus?.trained
-          ? `Risk model · spatial AUC ${riskStatus.auc_mean?.toFixed(2)}`
-          : 'Risk model not trained yet'}>
-        RISK LAYER
-      </button>
-      <div className="clock mono">{fmt(now)} UTC</div>
+
+      <div className="header-actions">
+        <button
+          className={`risk-toggle ${riskOn ? 'on' : ''}`}
+          onClick={onToggleRisk}
+          title={
+            riskStatus?.trained
+              ? `Spill Risk Model active · Spatial AUC ${riskStatus.auc_mean?.toFixed(2)}`
+              : 'Toggle predictive spill risk layer'
+          }>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+          <span>SPILL RISK LAYER</span>
+          {riskStatus?.trained && (
+            <span className="risk-auc mono">AUC {riskStatus.auc_mean?.toFixed(2)}</span>
+          )}
+        </button>
+
+        <div className="clock-card">
+          <span className="clock-time mono">{fmtTime(now)} <small>UTC</small></span>
+          <span className="clock-date mono">{fmtDate(now)}</span>
+        </div>
+      </div>
     </header>
   )
 }

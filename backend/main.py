@@ -5,11 +5,13 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import settings
 from .store import Store
@@ -26,6 +28,21 @@ system: System | None = None
 app = FastAPI(title="SlickTrace - Oil Spill Detection & Vessel Attribution",
               version="1.0")
 
+# ---- simple API-key auth ---------------------------------------------------
+API_KEY = settings.api_key
+
+if API_KEY:
+    class _AuthMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            if request.url.path.startswith("/api/"):
+                key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+                if key != API_KEY:
+                    from fastapi.responses import JSONResponse
+                    return JSONResponse({"detail": "unauthorized"}, status_code=401)
+            return await call_next(request)
+
+    app.add_middleware(_AuthMiddleware)
+
 
 @app.on_event("startup")
 async def _startup() -> None:
@@ -38,9 +55,7 @@ async def _startup() -> None:
 async def _shutdown() -> None:
     if system:
         await system.shutdown()
-        await system.ais.close()
-        await system.met.close()
-        await system.cdse.close()
+    store.close()
 
 
 # ---- status ------------------------------------------------------------------
@@ -79,7 +94,7 @@ async def vessel_track(mmsi: int, hours: float = 12,
     else:
         rows = store.query(
             "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? AND ts>? "
-            "ORDER BY ts", (mmsi, __import__("time").time() - hours * 3600))
+            "ORDER BY ts", (mmsi, time.time() - hours * 3600))
     return {"mmsi": mmsi, "points": [
         [r["lon"], r["lat"], r["ts"], r["sog"], r["cog"]] for r in rows]}
 
@@ -158,6 +173,9 @@ async def slick_detail(slick_id: int):
 
 @app.post("/api/slicks/{slick_id}/analyze")
 async def reanalyze_slick(slick_id: int):
+    row = store.one("SELECT id FROM slicks WHERE id=?", (slick_id,))
+    if not row:
+        raise HTTPException(404, "unknown slick")
     res = await system.analyze_slick(slick_id)
     if not res.get("ok"):
         reason = res.get("reason", "unknown")
@@ -231,8 +249,12 @@ async def ws_endpoint(ws: WebSocket):
         await ws.send_text(json.dumps({"type": "hello", "status": system.status()}))
         while True:
             # keep alive; client messages ignored (could add commands later)
-            await asyncio.wait_for(ws.receive_text(), timeout=30)
-    except (WebSocketDisconnect, asyncio.TimeoutError, Exception):
+            try:
+                await asyncio.wait_for(ws.receive_text(), timeout=30)
+            except asyncio.TimeoutError:
+                # idle client: send a ping frame rather than dropping it
+                await ws.send_text(json.dumps({"type": "ping"}))
+    except (WebSocketDisconnect, Exception):
         pass
     finally:
         system.hub.disconnect(ws)
@@ -244,8 +266,8 @@ if DIST.exists():
 
     @app.get("/{path:path}")
     async def spa(path: str):
-        candidate = DIST / path
-        if path and candidate.is_file():
+        candidate = (DIST / path).resolve()
+        if path and candidate.is_file() and str(candidate).startswith(str(DIST.resolve())):
             return FileResponse(candidate)
         return FileResponse(DIST / "index.html")
 else:

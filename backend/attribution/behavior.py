@@ -19,6 +19,18 @@ from .candidates import haversine_km
 
 _CACHE: dict[int, tuple[float, dict]] = {}
 _CACHE_TTL = 600.0
+_CACHE_MAX = 500
+
+
+def _cache_put(mmsi: int, out: dict) -> None:
+    now = time.time()
+    if len(_CACHE) >= _CACHE_MAX:
+        expired = [k for k, (t, _) in _CACHE.items() if now - t >= _CACHE_TTL]
+        if not expired:
+            expired = sorted(_CACHE, key=lambda k: _CACHE[k][0])[:_CACHE_MAX // 4]
+        for k in expired:
+            _CACHE.pop(k, None)
+    _CACHE[mmsi] = (now, out)
 
 # shore-distance lookup grid (lazy, coarse)
 _shore_ctx = None
@@ -75,7 +87,7 @@ def vessel_behavior_stats(store, mmsi: int) -> dict:
     out = {"n_fixes": len(rows), "anomaly": 0.0,
            "slow_open_sea": 0.0, "night_slow": 0.0, "gap_max_min": 0.0}
     if len(rows) < 20:
-        _CACHE[mmsi] = (now, out)
+        _cache_put(mmsi, out)
         return out
 
     ts = np.array([r["ts"] for r in rows])
@@ -110,5 +122,5 @@ def vessel_behavior_stats(store, mmsi: int) -> dict:
         "night_slow": round(night_slow_frac, 3),
         "gap_max_min": round(gap_max_min, 1),
     })
-    _CACHE[mmsi] = (now, out)
+    _cache_put(mmsi, out)
     return out

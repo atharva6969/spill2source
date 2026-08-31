@@ -5,10 +5,13 @@ Called by scheduler for new catalog scenes and by POST /api/scenes/scan.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
+import shutil
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 import numpy as np
 from scipy import ndimage
@@ -56,7 +59,6 @@ class DetectionPipeline:
             from .unet import predict_large
             mask = predict_large(self._unet, sigma_db).astype(bool) & sea
             # light morphological cleanup
-            from scipy import ndimage
             mask = ndimage.binary_closing(mask, np.ones((3, 3)))
             return mask
         # heuristic fallback
@@ -79,6 +81,7 @@ class DetectionPipeline:
                              "status": "processing", "name": name})
         t0 = time.time()
         loop = asyncio.get_running_loop()
+        safe_dir = None
         try:
             # heavy CPU work (unzip, calibration, segmentation) must not block
             # the event loop feeding the live dashboard
@@ -87,6 +90,45 @@ class DetectionPipeline:
             dt = time.time() - t0
             log.info("%s processed in %.0fs -> %d slick candidates",
                      name, dt, len(slick_ids))
+            # C2: immediate cleanup — detection results live in SQLite now
+            local = Path(local_zip)
+            scenes = local.parent if local.is_file() else local.parent
+            base = name.removesuffix(".SAFE")
+            for d in scenes.iterdir():
+                if d.is_dir() and d.name.startswith(base):
+                    shutil.rmtree(d, ignore_errors=True)
+                    safe_dir = d
+            if local.is_file():
+                local.unlink(missing_ok=True)
+            return slick_ids
+        except Exception as exc:
+            log.exception("detection failed for %s", name)
+            self.store.exec(
+                "UPDATE scenes SET status='error', error=?, processed_at=? "
+                "WHERE product_id=?", (str(exc)[:500], time.time(), product_id))
+            if broadcast:
+                await broadcast({"type": "scene_status", "product_id": product_id,
+                                 "status": "error", "name": name})
+            return []
+
+    async def process_sh(self, product_id: str, sigma_db, transform, pol: str,
+                          broadcast=None) -> list[int]:
+        """Run detection on a Sentinel-Hub AOI raster (no download/unpack)."""
+        meta = self.store.one("SELECT * FROM scenes WHERE product_id=?",
+                              (product_id,))
+        name = meta["name"] if meta else product_id
+        self.store.exec("UPDATE scenes SET status='processing' WHERE product_id=?",
+                        (product_id,))
+        if broadcast:
+            await broadcast({"type": "scene_status", "product_id": product_id,
+                             "status": "processing", "name": name})
+        t0 = time.time()
+        loop = asyncio.get_running_loop()
+        try:
+            slick_ids = await loop.run_in_executor(
+                None, self._run_sh, product_id, name, sigma_db, transform, pol)
+            log.info("%s processed (SH) in %.0fs -> %d slick candidates",
+                     name, time.time() - t0, len(slick_ids))
             return slick_ids
         except Exception as exc:
             log.exception("detection failed for %s", name)
@@ -103,6 +145,18 @@ class DetectionPipeline:
         tiff, pol = find_measurement(safe_dir)
         bbox = self.s.aoi_bbox
         sigma_db, transform, decim = read_sigma0_db(tiff, safe_dir, bbox=bbox)
+        return self._detect_core(product_id, name, sigma_db, transform,
+                                 pol=pol, decim=decim)
+
+    def _run_sh(self, product_id: str, name: str, sigma_db, transform,
+                pol: str) -> list[int]:
+        """Detection on an AOI raster fetched via Sentinel Hub (already
+        calibrated + geocoded, so no SAFE unpack/warp)."""
+        return self._detect_core(product_id, name, sigma_db, transform,
+                                 pol=pol, decim=1)
+
+    def _detect_core(self, product_id: str, name: str, sigma_db, transform,
+                     pol: str, decim: int) -> list[int]:
         h, w = sigma_db.shape
         if h < 50 or w < 50:
             raise RuntimeError("AOI barely intersects scene; nothing to scan")
@@ -212,7 +266,6 @@ class DetectionPipeline:
 
 
 def _j(v):
-    import json
     return json.dumps(v)
 
 

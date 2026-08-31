@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react'
+
 function utc(ts) {
   if (!ts) return '—'
   const d = new Date(ts * 1000)
   const p = (n) => String(n).padStart(2, '0')
-  return `${p(d.getUTCDate())} ${d.toLocaleString('en', { month: 'short' })} · ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`
+  return `${p(d.getUTCDate())} ${d.toLocaleString('en-US', { month: 'short' })} · ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`
 }
 
 function ago(ts) {
@@ -25,99 +27,174 @@ function hydro(lat, lon) {
 
 function SpeedSparkline({ series }) {
   if (!series || series.length < 3) return null
-  const w = 300, h = 46
+  const w = 320, h = 48
   const t0 = series[0][0], t1 = series[series.length - 1][0]
   const smax = Math.max(16, ...series.map((s) => s[1]))
-  const pts = series.map(([t, v]) =>
-    `${(((t - t0) / Math.max(t1 - t0, 1)) * w).toFixed(1)},` +
-    `${(h - (v / smax) * h).toFixed(1)}`).join(' ')
+  const pts = series
+    .map(
+      ([t, v]) =>
+        `${(((t - t0) / Math.max(t1 - t0, 1)) * w).toFixed(1)},` +
+        `${(h - (v / smax) * h).toFixed(1)}`
+    )
+    .join(' ')
   return (
-    <div className="spark">
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img"
-           aria-label="speed over time">
-        <polyline points={pts} fill="none" stroke="var(--cyan)"
-                  strokeWidth="1.6" />
+    <div className="spark-box">
+      <div className="spark-hdr">
+        <span className="spark-title">SPEED OVER TIME PROFILE (24H)</span>
+        <span className="mono dim">MAX {smax.toFixed(1)} KN</span>
+      </div>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="speed profile graph">
+        <defs>
+          <linearGradient id="speedGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#38BDF8" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <polygon points={`0,${h} ${pts} ${w},${h}`} fill="url(#speedGrad)" />
+        <polyline points={pts} fill="none" stroke="#38BDF8" strokeWidth="1.5" />
       </svg>
-      <span className="mono dim">speed kn · max {smax.toFixed(0)}</span>
     </div>
   )
 }
 
 export default function VesselCard({ details, onShowTrack, onClose }) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30000)
+    return () => clearInterval(t)
+  }, [])
   if (!details) return null
   const h = details.history || {}
   const live = details.live
+
   return (
-    <aside className="panel right">
+    <aside className="panel right vessel-panel">
       <div className="detail-head">
         <div>
+          <div className="target-badge-row">
+            <span className="target-tag tag-vessel">AIS VESSEL PROFILE</span>
+            <span className="vsl-flag-chip">{details.flag || 'INTERNATIONAL'}</span>
+          </div>
           <h2 className="vsl-name">
-            <span className="vsl-icon" aria-hidden="true">{details.type_icon}</span>
+            <span className="vsl-icon-svg" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 19 21 12 17 5 21 12 2" />
+              </svg>
+            </span>
             {details.name || `MMSI ${details.mmsi}`}
           </h2>
-          <p className="mono dim">
-            {details.type_label} · {details.flag}
-          </p>
+          <p className="mono dim">{details.type_label || 'Vessel'}</p>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        <button className="icon-btn" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
 
-      <section className="kv">
-        <div><span>MMSI</span><b className="mono">{details.mmsi}</b></div>
-        <div><span>IMO</span><b className="mono">{details.imo || '—'}</b></div>
-        <div><span>Call sign</span><b className="mono">{details.call_sign || '—'}</b></div>
-        <div>
-          <span>Size</span>
+      <section className="kv-grid">
+        <div className="kv-item">
+          <span>MMSI</span>
+          <b className="mono">{details.mmsi}</b>
+        </div>
+        <div className="kv-item">
+          <span>IMO NUMBER</span>
+          <b className="mono">{details.imo || '—'}</b>
+        </div>
+        <div className="kv-item">
+          <span>CALL SIGN</span>
+          <b className="mono">{details.call_sign || '—'}</b>
+        </div>
+        <div className="kv-item">
+          <span>DIMENSIONS</span>
           <b className="mono">
             {details.length && details.width
-              ? `${details.length} × ${details.width} m` : '—'}
+              ? `${details.length} × ${details.width} m`
+              : '—'}
           </b>
         </div>
-        <div><span>Draught</span><b className="mono">{details.draught ? `${details.draught} m` : '—'}</b></div>
-        <div><span>Destination</span><b className="mono">{details.destination || '—'}</b></div>
+        <div className="kv-item">
+          <span>DRAUGHT</span>
+          <b className="mono">{details.draught ? `${details.draught} m` : '—'}</b>
+        </div>
+        <div className="kv-item">
+          <span>DESTINATION</span>
+          <b className="mono">{details.destination || '—'}</b>
+        </div>
       </section>
 
       {live && (
-        <section className="live-block">
-          <div className="live-row">
-            <span className="live-num mono">{live.sog ?? '—'}<small> kn</small></span>
-            <span className="live-num mono">{live.cog ?? '—'}<small>°</small></span>
-            <span className="live-num mono">{hydro(live.lat, live.lon)}</span>
+        <section className="live-telemetry-box">
+          <div className="live-box-hdr">
+            <span>LIVE FIX TELEMETRY</span>
+            <span className="live-status-pill">{live.nav_status}</span>
           </div>
-          <p className="mono dim">
-            {live.nav_status} · report {ago(live.ts)}
-          </p>
+          <div className="live-stats-row">
+            <div className="stat-unit">
+              <span className="unit-label">SPEED OVER GROUND</span>
+              <b className="unit-val mono">{live.sog ?? '—'} <small>KN</small></b>
+            </div>
+            <div className="stat-unit">
+              <span className="unit-label">COURSE</span>
+              <b className="unit-val mono">{live.cog ?? '—'}°</b>
+            </div>
+            <div className="stat-unit">
+              <span className="unit-label">LAST POSITION</span>
+              <b className="unit-val mono small">{hydro(live.lat, live.lon)}</b>
+            </div>
+          </div>
+          <span className="live-update-tag mono">Fix reported {ago(live.ts)}</span>
         </section>
       )}
 
       {h.speed_series?.length > 3 && <SpeedSparkline series={h.speed_series} />}
 
-      <section className="kv hist">
-        <div><span>First seen</span><b className="mono">{utc(h.first_seen)}</b></div>
-        <div><span>Positions</span><b className="mono">{h.positions ?? '—'}</b></div>
-        <div><span>Sailed (24 h)</span><b className="mono">{h.distance_24h_km ?? '—'} km</b></div>
-        <div>
-          <span>Speed avg/max</span>
+      <section className="kv-grid hist-grid">
+        <div className="kv-item">
+          <span>FIRST RECORDED</span>
+          <b className="mono">{utc(h.first_seen)}</b>
+        </div>
+        <div className="kv-item">
+          <span>RECEIVED FIXES</span>
+          <b className="mono">{h.positions ?? '—'}</b>
+        </div>
+        <div className="kv-item">
+          <span>SAILED (24H)</span>
+          <b className="mono">{h.distance_24h_km ?? '—'} km</b>
+        </div>
+        <div className="kv-item">
+          <span>AVG / MAX SPEED</span>
           <b className="mono">
             {h.avg_speed != null ? `${h.avg_speed} / ${h.max_speed} kn` : '—'}
           </b>
         </div>
-        <div><span>Stops ≥15 min</span><b className="mono">{h.stops?.length ?? 0}</b></div>
-        <div><span>Dark gaps &gt;30 min</span><b className="mono">{h.dark_gaps ?? '—'}</b></div>
+        <div className="kv-item">
+          <span>STOPS (≥15 MIN)</span>
+          <b className="mono">{h.stops?.length ?? 0}</b>
+        </div>
+        <div className="kv-item">
+          <span>DARK GAPS (&gt;30 MIN)</span>
+          <b className="mono">{h.dark_gaps ?? '—'}</b>
+        </div>
       </section>
 
       {h.stops?.length > 0 && (
-        <ul className="stops">
-          {h.stops.slice(0, 3).map((s, i) => (
-            <li key={i} className="mono dim">
-              stop · {s.minutes} min · {s.lat.toFixed(2)}°N {s.lon.toFixed(2)}°E
-            </li>
-          ))}
-        </ul>
+        <div className="stops-box">
+          <span className="stops-title">RECORDED DRIFT / STOP EVENTS</span>
+          <ul className="stops-list">
+            {h.stops.slice(0, 3).map((s, i) => (
+              <li key={i} className="mono dim">
+                • {s.minutes} min stop @ {s.lat.toFixed(2)}°N {s.lon.toFixed(2)}°E
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      <button className="btn" onClick={() => onShowTrack(details.mmsi)}>
-        Show 18 h track on chart
+      <button
+        className="btn btn-primary-action"
+        onClick={() => onShowTrack(details.mmsi)}>
+        <span>DISPLAY 18-HOUR AIS TRACK</span>
       </button>
     </aside>
   )

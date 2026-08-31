@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS ais_positions (
     ts REAL NOT NULL,
     lon REAL NOT NULL,
     lat REAL NOT NULL,
-    sog REAL, cog REAL, navstat INTEGER
+    sog REAL, cog REAL, navstat INTEGER,
+    UNIQUE(mmsi, ts)
 );
-CREATE INDEX IF NOT EXISTS ix_ais_mmsi_ts ON ais_positions(mmsi, ts);
 CREATE INDEX IF NOT EXISTS ix_ais_ts ON ais_positions(ts);
 
 CREATE TABLE IF NOT EXISTS vessels (
@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS slicks (
     geometry TEXT,
     properties TEXT
 );
+CREATE INDEX IF NOT EXISTS ix_slicks_scene ON slicks(scene_id);
 
 CREATE TABLE IF NOT EXISTS drift_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS drift_runs (
     cone TEXT,                            -- forward uncertainty envelope polygons
     particles TEXT                        -- decimated particle endpoints/paths
 );
+CREATE INDEX IF NOT EXISTS ix_drift_slick ON drift_runs(slick_id);
 
 CREATE TABLE IF NOT EXISTS suspects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,6 +74,7 @@ CREATE TABLE IF NOT EXISTS suspects (
     computed_at REAL,
     UNIQUE(slick_id, mmsi)
 );
+CREATE INDEX IF NOT EXISTS ix_suspects_slick ON suspects(slick_id);
 
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,10 +92,12 @@ CREATE INDEX IF NOT EXISTS ix_risk_p ON risk_grid(p);
 
 class Store:
     def __init__(self, db_path):
-        self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._conn = sqlite3.connect(str(db_path), check_same_thread=False,
+                                     timeout=30)
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.Lock()
         with self._lock, self._conn:
+            self._conn.execute("PRAGMA busy_timeout = 30000")
             self._conn.executescript(SCHEMA)
 
     def exec(self, sql: str, params: Iterable = ()) -> None:
@@ -149,6 +154,10 @@ class Store:
     def prune_positions(self, keep_seconds: float) -> None:
         cutoff = time.time() - keep_seconds
         self.exec("DELETE FROM ais_positions WHERE ts < ?", (cutoff,))
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
 
     # ---- generic JSON helpers ----------------------------------------------
     @staticmethod

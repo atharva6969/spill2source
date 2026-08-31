@@ -12,6 +12,7 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import httpx
 
@@ -117,27 +118,111 @@ class CdseProvider:
         return self._token
 
     async def download(self, product_id: str, dest_dir=None,
-                       progress_cb=None) -> str:
-        """Stream a product to data/scenes/<name>.zip. Returns local path."""
+                       progress_cb=None, partial: bool = True) -> str:
+        """Fetch a product for processing.
+
+        With ``partial=True`` (default) only the single measurement band the
+        detector needs (VV, falling back to VH) plus its calibration XML are
+        pulled into a reconstructed ``.SAFE`` directory — roughly half the
+        bytes of the full product, which also carries a second polarisation,
+        previews and reports we never read. Returns the local path (a ``.SAFE``
+        directory for partial fetches, a ``.zip`` for full ones).
+        """
         meta = self.store.one("SELECT name FROM scenes WHERE product_id=?",
                               (product_id,))
         if not meta:
             raise RuntimeError("unknown product_id (poll catalog first)")
-        base = meta["name"].removesuffix(".SAFE")
-        dest = (dest_dir or self.settings.data_dir / "scenes") / f"{base}.zip"
+        scenes_dir = dest_dir or self.settings.data_dir / "scenes"
+        if partial:
+            try:
+                return await self._download_partial(
+                    product_id, meta["name"], scenes_dir, progress_cb)
+            except Exception as exc:
+                log.warning("partial fetch failed (%s); full download", exc)
+        return await self._download_full(
+            product_id, meta["name"], scenes_dir, progress_cb)
+
+    async def _list_nodes(self, url: str) -> list[dict]:
+        token = await self._get_token()
+        r = await self._client.get(url, headers={"Authorization": f"Bearer {token}"},
+                                   follow_redirects=True)
+        r.raise_for_status()
+        return r.json().get("result", [])
+
+    async def _download_partial(self, product_id: str, name: str,
+                                scenes_dir, progress_cb) -> str:
+        """Download only the VV (else VH) band tiff + its calibration XML into a
+        reconstructed <name>.SAFE dir the detection pipeline reads unchanged."""
+        base = f"{ODATA}/Products({product_id})/Nodes({name})"
+        meas = await self._list_nodes(f"{base}/Nodes(measurement)/Nodes")
+        tiffs = [n for n in meas if n["Name"].lower().endswith((".tiff", ".tif"))]
+        if not tiffs:
+            raise RuntimeError("no measurement node")
+        band = next((n for n in tiffs if "vv" in n["Name"].lower()), tiffs[0])
+        pol = "vv" if "vv" in band["Name"].lower() else "vh"
+
+        cals = await self._list_nodes(f"{base}/Nodes(annotation)/Nodes(calibration)/Nodes")
+        cal = next((n for n in cals
+                    if n["Name"].lower().startswith("calibration")
+                    and pol in n["Name"].lower()), None)
+        if cal is None:
+            raise RuntimeError("no calibration node for band")
+
+        safe_dir = Path(scenes_dir) / name
+        meas_dir = safe_dir / "measurement"
+        cal_dir = safe_dir / "annotation" / "calibration"
+        meas_dir.mkdir(parents=True, exist_ok=True)
+        cal_dir.mkdir(parents=True, exist_ok=True)
+
+        cal_url = (f"{base}/Nodes(annotation)/Nodes(calibration)/"
+                   f"Nodes({cal['Name']})/$value")
+        await self._stream_to(cal_url, cal_dir / cal["Name"])
+        tiff_url = f"{base}/Nodes(measurement)/Nodes({band['Name']})/$value"
+        await self._stream_to(tiff_url, meas_dir / band["Name"],
+                              product_id=product_id, progress_cb=progress_cb)
+        log.info("partial fetch %s: band %s (%.0f MB) + calibration",
+                 name, pol, band.get("ContentLength", 0) / 1e6)
+        return str(safe_dir)
+
+    async def _download_full(self, product_id: str, name: str,
+                             scenes_dir, progress_cb) -> str:
+        """Stream the whole product zip to data/scenes/<name>.zip."""
+        base = name.removesuffix(".SAFE")
+        dest = Path(scenes_dir) / f"{base}.zip"
+        url = f"{ODATA}/Products({product_id})/$value"
+        await self._stream_to(url, dest, product_id=product_id,
+                              progress_cb=progress_cb)
+        return str(dest)
+
+    async def _stream_to(self, url: str, dest: Path,
+                         product_id: str | None = None, progress_cb=None,
+                         retries: int = 3) -> None:
+        """Stream a node/product URL to ``dest``, re-attaching the Bearer token
+        across CDSE's catalogue->download 301 redirect. Retries the whole
+        transfer on transient network errors."""
+        last_exc: Exception | None = None
+        for attempt in range(retries):
+            try:
+                await self._stream_once(url, dest, product_id, progress_cb)
+                return
+            except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+                last_exc = exc
+                log.warning("stream %s attempt %d failed: %s",
+                            dest.name, attempt + 1, exc)
+                await asyncio.sleep(2 * (attempt + 1))
+        raise RuntimeError(f"download failed after {retries} attempts: {last_exc}")
+
+    async def _stream_once(self, url: str, dest: Path,
+                           product_id: str | None, progress_cb) -> None:
         token = await self._get_token()
         auth = {"Authorization": f"Bearer {token}"}
-
-        # follow redirects manually so the Authorization header is re-attached
-        # (catalogue 301s to download.dataspace.copernicus.eu)
-        url = f"{ODATA}/Products({product_id})/$value"
         resp = None
         for _ in range(5):
             ctx = self._client.stream("GET", url, headers=auth)
             resp = await ctx.__aenter__()
             if resp.status_code in (301, 302, 303, 307, 308):
-                loc = resp.headers.get("location")
                 await ctx.__aexit__(None, None, None)
+                loc = resp.headers.get("location")
                 if not loc:
                     raise RuntimeError("download redirect without location")
                 url = loc
@@ -148,21 +233,23 @@ class CdseProvider:
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))
             done = 0
-            self.download_progress[product_id] = {"pct": 0.0, "mb": 0.0}
+            if product_id:
+                self.download_progress[product_id] = {"pct": 0.0, "mb": 0.0}
             with open(dest, "wb") as fh:
                 async for chunk in resp.aiter_bytes(1 << 20):
                     fh.write(chunk)
                     done += len(chunk)
-                    if total:
+                    if product_id and total:
                         pct = round(done / total * 100, 1)
                         self.download_progress[product_id] = {
                             "pct": pct, "mb": round(done / 1e6, 1)}
                         if progress_cb and int(pct * 4) % 10 == 0:
                             await progress_cb(product_id, pct)
         finally:
-            await ctx.__aexit__(None, None, None)
-        self.download_progress.pop(product_id, None)
-        return str(dest)
+            if resp is not None:
+                await resp.aclose()
+        if product_id:
+            self.download_progress.pop(product_id, None)
 
     async def run(self, on_new_scene=None, broadcast=None) -> None:
         """Catalog poll loop."""

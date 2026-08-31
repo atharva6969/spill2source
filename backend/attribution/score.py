@@ -150,7 +150,9 @@ def _crossing(fixes, slick_geom, olon, olat):
     elif hit_slick:
         ev.append("track crosses slick footprint")
     else:
-        d = line.distance(Point(olon, olat)) * 111.0
+        raw_deg = line.distance(Point(olon, olat))
+        coslat = math.cos(math.radians(min(max(abs(olat), 45.0), 70.0)))
+        d = raw_deg * 111.0 * coslat
         ev.append(f"track stays {d:.0f}+ km from slick")
     return val, "; ".join(ev)
 

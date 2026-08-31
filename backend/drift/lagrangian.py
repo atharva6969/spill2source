@@ -41,7 +41,9 @@ class DriftModel:
         """Uniform random points inside polygon, in metres."""
         minx, miny, maxx, maxy = poly.bounds
         pts = []
-        while len(pts) < n:
+        max_attempts = n * 20  # prevent infinite loop on degenerate polygons
+        attempts = 0
+        while len(pts) < n and attempts < max_attempts:
             xs = np.random.uniform(minx, maxx, size=n * 2)
             ys = np.random.uniform(miny, maxy, size=n * 2)
             for x, y in zip(xs, ys):
@@ -49,6 +51,13 @@ class DriftModel:
                     pts.append((x, y))
                     if len(pts) >= n:
                         break
+                attempts += 1
+                if attempts >= max_attempts:
+                    break
+        if len(pts) < n:
+            # Fallback: use centroid for degenerate polygons
+            cx, cy = poly.centroid.x, poly.centroid.y
+            pts.extend([(cx, cy)] * (n - len(pts)))
         return np.asarray(pts[:n], dtype=float)
 
     # ---- dynamics ------------------------------------------------------------

@@ -19,8 +19,14 @@ NS = {"s1": "http://www.opengis.net/sar/2.0"}
 
 
 def unpack_safe(zip_path: str | Path, dest_dir: Path) -> Path:
-    """Extract SAFE archive; returns the .SAFE directory."""
+    """Extract SAFE archive; returns the .SAFE directory.
+
+    Accepts an already-unpacked ``.SAFE`` directory (partial band fetches
+    reconstruct one directly) and returns it as-is.
+    """
     zip_path = Path(zip_path)
+    if zip_path.is_dir():
+        return zip_path
     safe_dir = dest_dir / zip_path.stem.replace("_COG", "")
     if not safe_dir.exists():
         with zipfile.ZipFile(zip_path) as zf:

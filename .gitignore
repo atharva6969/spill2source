@@ -1,5 +1,7 @@
 # ---- secrets (never commit) ----
 .env
+.env.*
+!.env.example
 
 # ---- runtime data: AIS history, scenes (~GB), datasets, models ----
 # everything here is regenerable via scripts/ (see README)
@@ -12,14 +14,32 @@ frontend/dist/
 # ---- python ----
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 .pytest_cache/
 .venv/
+venv/
 
 # ---- local tooling ----
 .claude/
 
-# ---- OS / editor noise ----
+# ---- IDE / editor ----
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---- OS noise ----
 Thumbs.db
+Desktop.ini
 .DS_Store
 ~$*
 *.tmp
+*.log
+
+# ---- large datasets (regenerable) ----
+*.SAFE/
+*.safe/
