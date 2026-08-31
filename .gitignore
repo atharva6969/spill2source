@@ -3,9 +3,12 @@
 .env.*
 !.env.example
 
-# ---- runtime data: AIS history, scenes (~GB), datasets, models ----
-# everything here is regenerable via scripts/ (see README)
-data/
+# ---- runtime data: AIS history, scenes (~GB), datasets ----
+# everything here is regenerable via scripts/ (see README), but models are included
+data/*
+!data/
+!data/unet_model.pt
+!data/risk_model.joblib
 
 # ---- frontend ----
 frontend/node_modules/
