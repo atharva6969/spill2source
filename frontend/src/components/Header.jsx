@@ -6,8 +6,21 @@ const LEDS = [
   { key: 'sat', label: 'SENTINEL-1 SAR', desc: 'Copernicus radar imagery' },
 ]
 
-export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
+export default function Header({
+  status,
+  riskOn,
+  onToggleRisk,
+  riskStatus,
+  showVessels,
+  onToggleVessels,
+  basemapKey,
+  onSelectBasemap,
+  basemaps,
+  onResetView,
+}) {
   const [now, setNow] = useState(new Date())
+  const [basemapOpen, setBasemapOpen] = useState(false)
+
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
@@ -73,15 +86,59 @@ export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
       </nav>
 
       <div className="header-actions">
+        {/* Basemap Switcher */}
+        {basemaps && (
+          <div className="toolbar-group">
+            <button
+              className={`header-btn ${basemapOpen ? 'active' : ''}`}
+              onClick={() => setBasemapOpen(!basemapOpen)}
+              title="Switch Basemap Style">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+              </svg>
+              <span>{basemaps[basemapKey]?.name || 'Basemap'}</span>
+            </button>
+            {basemapOpen && (
+              <div className="basemap-dropdown">
+                {Object.entries(basemaps).map(([k, bm]) => (
+                  <button
+                    key={k}
+                    className={`bm-option ${basemapKey === k ? 'selected' : ''}`}
+                    onClick={() => {
+                      onSelectBasemap(k)
+                      setBasemapOpen(false)
+                    }}>
+                    {bm.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AIS Traffic Toggle */}
         <button
-          className={`risk-toggle ${riskOn ? 'on' : ''}`}
+          className={`header-btn ${showVessels ? 'on' : ''}`}
+          onClick={onToggleVessels}
+          title="Toggle AIS Vessel Traffic Overlay">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="12 2 19 21 12 17 5 21 12 2" />
+          </svg>
+          <span>AIS TRAFFIC</span>
+        </button>
+
+        {/* Risk Layer Toggle */}
+        <button
+          className={`header-btn risk-toggle ${riskOn ? 'on' : ''}`}
           onClick={onToggleRisk}
           title={
             riskStatus?.trained
               ? `Spill Risk Model active · Spatial AUC ${riskStatus.auc_mean?.toFixed(2)}`
               : 'Toggle predictive spill risk layer'
           }>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
           </svg>
           <span>SPILL RISK LAYER</span>
@@ -90,6 +147,19 @@ export default function Header({ status, riskOn, onToggleRisk, riskStatus }) {
           )}
         </button>
 
+        {/* Reset AOI View */}
+        <button
+          className="header-btn"
+          onClick={onResetView}
+          title="Reset Map to Gulf of Finland AOI">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          <span>RESET AOI</span>
+        </button>
+
+        {/* Live UTC Clock */}
         <div className="clock-card">
           <span className="clock-time mono">{fmtTime(now)} <small>UTC</small></span>
           <span className="clock-date mono">{fmtDate(now)}</span>

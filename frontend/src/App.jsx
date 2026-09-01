@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { getJSON, postJSON } from './api.js'
 import Header from './components/Header.jsx'
-import MapView from './components/MapView.jsx'
+import MapView, { BASEMAPS } from './components/MapView.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import SlickDetail from './components/SlickDetail.jsx'
 import VesselCard from './components/VesselCard.jsx'
@@ -21,6 +21,9 @@ export default function App() {
   const riskStatusRef = useRef(null)
   const [toast, setToast] = useState(null)
   const [leftPanelOpen, setLeftPanelOpen] = useState(true)
+  const [rightPanelOpen, setRightPanelOpen] = useState(true)
+  const [showVessels, setShowVessels] = useState(true)
+  const [basemapKey, setBasemapKey] = useState('dark')
   const toastTimerRef = useRef(null)
 
   const showToast = useCallback((m) => {
@@ -39,19 +42,29 @@ export default function App() {
     try {
       const st = await getJSON('/api/status')
       setStatus(st)
-      setVessels(await getJSON('/api/vessels/live'))
-      setScenes(await getJSON('/api/scenes'))
-      setSlicks(await getJSON('/api/slicks'))
-      setEvents(await getJSON('/api/events?limit=60'))
+      // When status check succeeds, clear any persistent backend error toast
+      setToast((prev) => (prev && prev.includes('Backend unreachable') ? null : prev))
+
+      const [v, sc, sl, ev] = await Promise.all([
+        getJSON('/api/vessels/live').catch(() => null),
+        getJSON('/api/scenes').catch(() => []),
+        getJSON('/api/slicks').catch(() => []),
+        getJSON('/api/events?limit=60').catch(() => []),
+      ])
+      if (v) setVessels(v)
+      if (sc) setScenes(sc)
+      if (sl) setSlicks(sl)
+      if (ev) setEvents(ev)
+
       if (!riskStatusRef.current) {
         getJSON('/api/risk/status')
           .then((rs) => { riskStatusRef.current = rs })
           .catch(() => {})
       }
     } catch {
-      setToast('Backend unreachable — start it with run.bat')
+      showToast('Backend unreachable — start it with run.bat')
     }
-  }, [])
+  }, [showToast])
 
   const toggleRisk = useCallback(async () => {
     setRiskOn((prev) => {
@@ -141,6 +154,7 @@ export default function App() {
 
   const openSlick = useCallback(async (id) => {
     setSelectedSlickId(id)
+    setRightPanelOpen(true)
     try { setDetail(await getJSON(`/api/slicks/${id}`)) } catch { /* noop */ }
   }, [])
 
@@ -168,6 +182,7 @@ export default function App() {
     setVesselMmsi(mmsi)
     setVesselDetails(null)
     if (!mmsi) return
+    setRightPanelOpen(true)
     getJSON(`/api/vessels/${mmsi}/details`)
       .then(setVesselDetails)
       .catch(() => {})
@@ -175,6 +190,10 @@ export default function App() {
       .then((tr) => window.dispatchEvent(
         new CustomEvent('vessel-track', { detail: tr })))
       .catch(() => {})
+  }, [])
+
+  const resetAOI = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('reset-map-view'))
   }, [])
 
   return (
@@ -188,6 +207,10 @@ export default function App() {
           vesselMmsi={vesselMmsi}
           riskOn={riskOn}
           riskData={riskData}
+          showVessels={showVessels}
+          basemapKey={basemapKey}
+          leftPanelOpen={leftPanelOpen}
+          rightPanelOpen={rightPanelOpen}
           onSelectSlick={openSlick}
           onSelectVessel={selectVessel}
         />
@@ -199,6 +222,12 @@ export default function App() {
         riskOn={riskOn}
         onToggleRisk={toggleRisk}
         riskStatus={riskStatusRef.current}
+        showVessels={showVessels}
+        onToggleVessels={() => setShowVessels((v) => !v)}
+        basemapKey={basemapKey}
+        onSelectBasemap={setBasemapKey}
+        basemaps={BASEMAPS}
+        onResetView={resetAOI}
       />
 
       {/* 3. Floating Left Intelligence Dock */}
@@ -219,26 +248,35 @@ export default function App() {
             selectedSlickId={selectedSlickId}
             onOpenSlick={openSlick}
             onScanScene={scanScene}
+            onSelectVessel={selectVessel}
           />
         )}
       </div>
 
       {/* 4. Floating Right Inspector Card */}
-      <div className="right-hud-dock">
-        {vesselMmsi ? (
-          <VesselCard
-            details={vesselDetails}
-            onShowTrack={selectVessel}
-            onClose={() => { setVesselMmsi(null); setVesselDetails(null) }}
-          />
-        ) : (
-          <SlickDetail
-            detail={detail}
-            selectedSlickId={selectedSlickId}
-            onSelectVessel={selectVessel}
-            onAnalyze={() => reanalyze(detail?.id)}
-            onClose={() => { setDetail(null); setSelectedSlickId(null) }}
-          />
+      <div className={`right-hud-dock ${rightPanelOpen ? 'open' : 'collapsed'}`}>
+        <button
+          className="dock-toggle-btn right-toggle-btn"
+          onClick={() => setRightPanelOpen(!rightPanelOpen)}
+          title={rightPanelOpen ? 'Collapse inspector dock' : 'Expand inspector dock'}>
+          {rightPanelOpen ? '\u25b6' : '\u25c0'}
+        </button>
+        {rightPanelOpen && (
+          vesselMmsi ? (
+            <VesselCard
+              details={vesselDetails}
+              onShowTrack={selectVessel}
+              onClose={() => { setVesselMmsi(null); setVesselDetails(null) }}
+            />
+          ) : (
+            <SlickDetail
+              detail={detail}
+              selectedSlickId={selectedSlickId}
+              onSelectVessel={selectVessel}
+              onAnalyze={() => reanalyze(detail?.id)}
+              onClose={() => { setDetail(null); setSelectedSlickId(null) }}
+            />
+          )
         )}
       </div>
 
@@ -266,7 +304,12 @@ export default function App() {
       </div>
 
       {/* 6. Notification Toast */}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      {toast && (
+        <div className="toast" role="status" onClick={() => setToast(null)} title="Click to dismiss">
+          <span>{toast}</span>
+          <button className="toast-close-btn" aria-label="Dismiss">×</button>
+        </div>
+      )}
     </div>
   )
 }

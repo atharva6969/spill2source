@@ -75,24 +75,63 @@ def dice_loss(logits, target, eps=1.0):
 def predict_mask(model, tile_db: np.ndarray, thr: float = 0.5) -> np.ndarray:
     """tile_db: HxW float dB -> binary mask uint8."""
     model.eval()
-    x = torch.from_numpy(normalize(tile_db))[None, None]
-    logit = model(x)[0, 0]
-    return (torch.sigmoid(logit) > thr).numpy().astype(np.uint8)
+    with torch.inference_mode():
+        x = torch.from_numpy(normalize(tile_db))[None, None]
+        logit = model(x)[0, 0]
+        return (torch.sigmoid(logit) > thr).cpu().numpy().astype(np.uint8)
 
 
 @torch.no_grad()
-def predict_large(model, img_db: np.ndarray, tile: int = 256, thr: float = 0.5) -> np.ndarray:
-    """Run the U-Net over a large dB image with mirror-free tiled stitching."""
+def predict_large(model, img_db: np.ndarray, tile: int = 256, thr: float = 0.5,
+                  batch_size: int = 32, sea_mask: np.ndarray | None = None) -> np.ndarray:
+    """Run the U-Net over a large dB image with high-performance batched inference."""
+    model.eval()
     h, w = img_db.shape
     out = np.zeros((h, w), dtype=np.uint8)
-    ys = list(range(0, max(h - tile, 0) + 1, tile))
-    xs = list(range(0, max(w - tile, 0) + 1, tile))
+
+    if h < tile or w < tile:
+        # Pad image to minimum tile size if necessary
+        pad_h = max(tile - h, 0)
+        pad_w = max(tile - w, 0)
+        padded = np.pad(img_db, ((0, pad_h), (0, pad_w)), mode="constant", constant_values=np.nan)
+        mask = predict_mask(model, padded, thr)
+        return mask[:h, :w]
+
+    ys = list(range(0, h - tile + 1, tile))
+    xs = list(range(0, w - tile + 1, tile))
     if ys[-1] != h - tile:
         ys.append(h - tile)
     if xs[-1] != w - tile:
         xs.append(w - tile)
+
+    # Normalize entire image once in vectorized NumPy
+    norm_img = normalize(img_db)
+
+    # Collect tile coordinates that contain valid sea/data pixels
+    valid_tiles = []
     for y0 in ys:
         for x0 in xs:
-            out[y0:y0 + tile, x0:x0 + tile] = predict_mask(
-                model, img_db[y0:y0 + tile, x0:x0 + tile], thr)
+            y1, x1 = y0 + tile, x0 + tile
+            if sea_mask is not None:
+                # If tile has zero sea pixels, skip inference completely
+                if not sea_mask[y0:y1, x0:x1].any():
+                    continue
+            valid_tiles.append((y0, y1, x0, x1))
+
+    if not valid_tiles:
+        return out
+
+    # Process tiles in vectorized batches
+    with torch.inference_mode():
+        for i in range(0, len(valid_tiles), batch_size):
+            batch_coords = valid_tiles[i:i + batch_size]
+            batch_np = np.stack([norm_img[y0:y1, x0:x1] for (y0, y1, x0, x1) in batch_coords], axis=0)
+            # shape: (B, 1, tile, tile)
+            batch_tensor = torch.from_numpy(batch_np[:, None, :, :])
+            logits = model(batch_tensor)[:, 0]
+            masks = (torch.sigmoid(logits) > thr).cpu().numpy().astype(np.uint8)
+
+            for (y0, y1, x0, x1), m in zip(batch_coords, masks):
+                out[y0:y1, x0:x1] = np.maximum(out[y0:y1, x0:x1], m)
+
     return out

@@ -1,21 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 
-const BASEMAPS = {
+export const BASEMAPS = {
   dark: {
-    name: 'Dark Carto',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap · &copy; CARTO',
+    name: 'Dark Maritime',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+  },
+  ocean: {
+    name: 'Ocean Topo',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, GEBCO, NOAA, Garmin',
   },
   satellite: {
     name: 'Satellite Imagery',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; Esri, Maxar, Earthstar Geographics',
   },
-  topo: {
-    name: 'Ocean Topo',
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenTopoMap',
+  osm: {
+    name: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
   },
 }
 
@@ -51,6 +56,10 @@ export default function MapView({
   vesselMmsi,
   riskOn,
   riskData,
+  showVessels,
+  basemapKey,
+  leftPanelOpen,
+  rightPanelOpen,
   onSelectSlick,
   onSelectVessel,
 }) {
@@ -58,10 +67,6 @@ export default function MapView({
   const mapRef = useRef(null)
   const layerRef = useRef(null)
   const tileLayerRef = useRef(null)
-
-  const [basemapKey, setBasemapKey] = useState('dark')
-  const [showVessels, setShowVessels] = useState(true)
-  const [basemapMenuOpen, setBasemapMenuOpen] = useState(false)
 
   const onSelectVesselRef = useRef(onSelectVessel)
   onSelectVesselRef.current = onSelectVessel
@@ -74,7 +79,7 @@ export default function MapView({
       preferCanvas: true,
     }).setView([59.9, 25.4], 8)
 
-    const initialBm = BASEMAPS.dark
+    const initialBm = BASEMAPS[basemapKey] || BASEMAPS.dark
     const tileLg = L.tileLayer(initialBm.url, {
       maxZoom: 18,
       attribution: initialBm.attribution,
@@ -105,31 +110,31 @@ export default function MapView({
     }
     window.addEventListener('fly-to', onFly)
 
+    const onReset = () => {
+      map.flyTo([59.9, 25.4], 8, { duration: 1.2 })
+    }
+    window.addEventListener('reset-map-view', onReset)
+
     return () => {
       window.removeEventListener('vessel-track', onTrack)
       window.removeEventListener('fly-to', onFly)
+      window.removeEventListener('reset-map-view', onReset)
       map.remove()
     }
   }, [])
 
-  // --- Basemap Switcher ------------------------------------------------------
-  const switchBasemap = (key) => {
-    setBasemapKey(key)
-    setBasemapMenuOpen(false)
-    if (!mapRef.current || !tileLayerRef.current) return
-    const bm = BASEMAPS[key]
-    mapRef.current.removeLayer(tileLayerRef.current)
+  // --- Tile Layer Update when Basemap changes --------------------------------
+  useEffect(() => {
+    if (!mapRef.current) return
+    const bm = BASEMAPS[basemapKey] || BASEMAPS.dark
+    if (tileLayerRef.current) {
+      mapRef.current.removeLayer(tileLayerRef.current)
+    }
     tileLayerRef.current = L.tileLayer(bm.url, {
       maxZoom: 18,
       attribution: bm.attribution,
     }).addTo(mapRef.current)
-  }
-
-  const resetView = () => {
-    if (mapRef.current) {
-      mapRef.current.flyTo([59.9, 25.4], 8, { duration: 1.2 })
-    }
-  }
+  }, [basemapKey])
 
   // --- Vessel Track Draw ----------------------------------------------------
   const drawVesselTrack = (tr) => {
@@ -392,56 +397,8 @@ export default function MapView({
     <div className="map-wrap">
       <div ref={boxRef} className="map" />
 
-      {/* Interactive Map Floating Toolbar (Top Right) */}
-      <div className="map-floating-toolbar">
-        <div className="toolbar-group">
-          <button
-            className={`toolbar-btn ${basemapMenuOpen ? 'active' : ''}`}
-            onClick={() => setBasemapMenuOpen(!basemapMenuOpen)}
-            title="Switch Basemap Layer">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="12 2 2 7 12 12 22 7 12 2" />
-              <polyline points="2 17 12 22 22 17" />
-              <polyline points="2 12 12 17 22 12" />
-            </svg>
-            <span className="btn-label">{BASEMAPS[basemapKey].name}</span>
-          </button>
-
-          {basemapMenuOpen && (
-            <div className="basemap-dropdown">
-              {Object.entries(BASEMAPS).map(([k, bm]) => (
-                <button
-                  key={k}
-                  className={`bm-option ${basemapKey === k ? 'selected' : ''}`}
-                  onClick={() => switchBasemap(k)}>
-                  {bm.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button
-          className={`toolbar-btn ${showVessels ? 'active' : ''}`}
-          onClick={() => setShowVessels(!showVessels)}
-          title="Toggle AIS Vessel Traffic Overlay">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="12 2 19 21 12 17 5 21 12 2" />
-          </svg>
-          <span className="btn-label">AIS TRAFFIC</span>
-        </button>
-
-        <button className="toolbar-btn" onClick={resetView} title="Reset Map View">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-          <span className="btn-label">RESET AOI</span>
-        </button>
-      </div>
-
-      {/* Floating Chart Legend */}
-      <div className="map-legend">
+      {/* Floating Chart Legend (smoothly offsets when left intelligence dock opens) */}
+      <div className={`map-legend ${leftPanelOpen ? 'dock-open' : 'dock-closed'}`}>
         <div className="lg-title">GIS LAYER KEY</div>
         <div><span className="sw slick" /> Detected Slick (Sentinel-1 SAR)</div>
         <div><span className="sw origin" /> Estimated Release Origin</div>
@@ -452,14 +409,16 @@ export default function MapView({
       </div>
 
       {riskOn && (
-        <div className="risk-legend">
+        <div className={`risk-legend ${rightPanelOpen ? 'dock-open' : 'dock-closed'}`}>
           <span>SPILL RISK</span>
           <span className="ramp" aria-hidden="true" />
           <span className="mono">LOW → HIGH</span>
         </div>
       )}
 
-      <div className="coord-strip mono" id="coord-strip">59°54.0′N 025°18.0′E</div>
+      <div className={`coord-strip mono ${leftPanelOpen ? 'dock-open' : 'dock-closed'}`} id="coord-strip">
+        59°54.0′N 025°18.0′E
+      </div>
     </div>
   )
 }

@@ -123,7 +123,7 @@ class SentinelHubProvider:
         t1_iso = (dt + timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         mosaic = np.zeros((full_h, full_w), dtype=np.float32)
-        n_tiles = 0
+        tasks = []
         for r0 in range(0, full_h, MAX_TILE_PX):
             for c0 in range(0, full_w, MAX_TILE_PX):
                 th = min(MAX_TILE_PX, full_h - r0)
@@ -131,12 +131,23 @@ class SentinelHubProvider:
                 # tile bbox from the mosaic transform (row grows southward)
                 tx0, ty1 = transform * (c0, r0)
                 tx1, ty0 = transform * (c0 + tw, r0 + th)
-                tile = self._fetch_tile((tx0, ty0, tx1, ty1), tw, th,
-                                        t0_iso, t1_iso, pol)
-                mosaic[r0:r0 + th, c0:c0 + tw] = tile
-                n_tiles += 1
-        log.info("SH fetch %s: %dx%d px over %d tile(s) @ %.0f m",
-                 pol, full_w, full_h, n_tiles, self.settings.sh_resolution_m)
+                tasks.append((r0, c0, th, tw, (tx0, ty0, tx1, ty0)))
+
+        def _fetch_worker(item):
+            r0, c0, th, tw, tbbox = item
+            t_data = self._fetch_tile(tbbox, tw, th, t0_iso, t1_iso, pol)
+            return r0, c0, th, tw, t_data
+
+        import concurrent.futures
+        workers = min(len(tasks), 8) if tasks else 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            results = list(executor.map(_fetch_worker, tasks))
+
+        for r0, c0, th, tw, t_data in results:
+            mosaic[r0:r0 + th, c0:c0 + tw] = t_data
+
+        log.info("SH fetch %s: %dx%d px over %d parallel tile(s) @ %.0f m",
+                 pol, full_w, full_h, len(tasks), self.settings.sh_resolution_m)
 
         sigma0 = mosaic.copy()
         sigma0[sigma0 <= 0] = np.nan

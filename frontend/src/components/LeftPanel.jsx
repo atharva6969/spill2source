@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 const STATUS_LABEL = {
   catalogued: 'In Orbit Queue',
@@ -18,6 +18,17 @@ function utc(ts) {
   return `${p(d.getUTCDate())} ${d.toLocaleString('en-US', { month: 'short' })} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`
 }
 
+function timeAgo(ts) {
+  if (!ts) return '—'
+  const sec = Math.max(0, Math.floor(Date.now() / 1000 - ts))
+  if (sec < 60) return 'just now'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ago`
+  const hrs = Math.floor(min / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 export default function LeftPanel({
   events,
   scenes,
@@ -27,8 +38,34 @@ export default function LeftPanel({
   selectedSlickId,
   onOpenSlick,
   onScanScene,
+  onSelectVessel,
 }) {
   const [tab, setTab] = useState('slicks')
+  const [alertFilter, setAlertFilter] = useState('all')
+  const [alertSearch, setAlertSearch] = useState('')
+
+  const alertCounts = useMemo(() => {
+    const res = { all: events.length, alert: 0, warning: 0, info: 0 }
+    for (const e of events) {
+      if (e.severity === 'alert' || e.severity === 'spill') res.alert++
+      else if (e.severity === 'warning' || e.severity === 'gap') res.warning++
+      else res.info++
+    }
+    return res
+  }, [events])
+
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => {
+      if (alertFilter === 'alert' && e.severity !== 'alert' && e.severity !== 'spill') return false
+      if (alertFilter === 'warning' && e.severity !== 'warning' && e.severity !== 'gap') return false
+      if (alertFilter === 'info' && e.severity !== 'info' && e.severity !== 'action') return false
+      if (alertSearch) {
+        const q = alertSearch.toLowerCase()
+        return (e.message || '').toLowerCase().includes(q) || (e.category || '').toLowerCase().includes(q)
+      }
+      return true
+    })
+  }, [events, alertFilter, alertSearch])
 
   const counts = {
     events: events.length,
@@ -171,26 +208,115 @@ export default function LeftPanel({
         )}
 
         {tab === 'events' && (
-          <ul className="feed events-feed">
-            {events.length === 0 && (
-              <div className="empty-state-box">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
-                <p className="empty-title">Surveillance Feed Active</p>
-                <p className="empty-desc">System alerts, traffic gaps, and detection events will log here.</p>
+          <div className="alerts-tab-wrap">
+            {/* Filter Pills & Search */}
+            <div className="alerts-control-bar">
+              <div className="alert-filter-pills">
+                <button
+                  className={`af-pill ${alertFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setAlertFilter('all')}>
+                  ALL <span className="af-count mono">{alertCounts.all}</span>
+                </button>
+                <button
+                  className={`af-pill sev-alert ${alertFilter === 'alert' ? 'active' : ''}`}
+                  onClick={() => setAlertFilter('alert')}>
+                  ALERTS <span className="af-count mono">{alertCounts.alert}</span>
+                </button>
+                <button
+                  className={`af-pill sev-warning ${alertFilter === 'warning' ? 'active' : ''}`}
+                  onClick={() => setAlertFilter('warning')}>
+                  WARNINGS <span className="af-count mono">{alertCounts.warning}</span>
+                </button>
+                <button
+                  className={`af-pill sev-info ${alertFilter === 'info' ? 'active' : ''}`}
+                  onClick={() => setAlertFilter('info')}>
+                  SYSTEM <span className="af-count mono">{alertCounts.info}</span>
+                </button>
               </div>
-            )}
-            {events.map((e, i) => (
-              <li key={e.ts ? `${e.ts}-${i}` : i} className={`evt sev-${e.severity}`}>
-                <div className="evt-hdr">
-                  <span className="evt-badge">{e.severity.toUpperCase()}</span>
-                  <span className="mono evt-ts">{utc(e.ts)}</span>
+
+              <div className="alert-search-row">
+                <input
+                  type="text"
+                  className="alert-search-input"
+                  placeholder="Filter alerts by vessel, slick, scene..."
+                  value={alertSearch}
+                  onChange={(e) => setAlertSearch(e.target.value)}
+                />
+                {alertSearch && (
+                  <button className="alert-search-clear" onClick={() => setAlertSearch('')}>×</button>
+                )}
+              </div>
+            </div>
+
+            <ul className="feed events-feed">
+              {filteredEvents.length === 0 && (
+                <div className="empty-state-box">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                  </svg>
+                  <p className="empty-title">
+                    {alertSearch || alertFilter !== 'all' ? 'No Matching Alerts' : 'Surveillance Feed Active'}
+                  </p>
+                  <p className="empty-desc">
+                    {alertSearch || alertFilter !== 'all'
+                      ? 'Try clearing the search query or switching filters.'
+                      : 'Live Sentinel-1 detections, AIS vessel silence gaps, and telemetry events log here in real time.'}
+                  </p>
                 </div>
-                <p className="evt-msg">{e.message}</p>
-              </li>
-            ))}
-          </ul>
+              )}
+
+              {filteredEvents.map((e, i) => {
+                const slickMatch = e.payload?.slick_ids?.[0] || (e.message || '').match(/slick #?(\d+)/i)?.[1]
+                const mmsiMatch = e.payload?.mmsi || (e.message || '').match(/MMSI (\d{9})/)?.[1]
+                const isSceneEvent = e.category === 'scene' || (e.message || '').includes('.SAFE')
+
+                return (
+                  <li key={e.ts ? `${e.ts}-${i}` : i} className={`evt sev-${e.severity}`}>
+                    <div className="evt-hdr">
+                      <div className="evt-badge-group">
+                        <span className={`evt-dot-indicator sev-${e.severity}`} />
+                        <span className="evt-badge">{e.severity.toUpperCase()}</span>
+                        {e.category && <span className="evt-cat mono">{e.category.toUpperCase()}</span>}
+                      </div>
+                      <span className="mono evt-ts" title={utc(e.ts)}>{timeAgo(e.ts)}</span>
+                    </div>
+
+                    <p className="evt-msg">{e.message}</p>
+
+                    {/* Actionable buttons if linked to slick, vessel, or scene */}
+                    {(slickMatch || mmsiMatch || isSceneEvent) && (
+                      <div className="evt-action-row">
+                        {slickMatch && (
+                          <button
+                            className="evt-action-btn slick-action"
+                            onClick={() => onOpenSlick(Number(slickMatch))}>
+                            <span>VIEW SLICK #{slickMatch}</span>
+                            <span className="arr">→</span>
+                          </button>
+                        )}
+                        {mmsiMatch && onSelectVessel && (
+                          <button
+                            className="evt-action-btn vessel-action"
+                            onClick={() => onSelectVessel(Number(mmsiMatch))}>
+                            <span>TRACK MMSI {mmsiMatch}</span>
+                            <span className="arr">→</span>
+                          </button>
+                        )}
+                        {isSceneEvent && (
+                          <button
+                            className="evt-action-btn scene-action"
+                            onClick={() => setTab('scenes')}>
+                            <span>VIEW SCENES</span>
+                            <span className="arr">→</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         )}
 
         {tab === 'risk' && (

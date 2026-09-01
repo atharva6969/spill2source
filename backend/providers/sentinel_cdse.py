@@ -147,7 +147,8 @@ class CdseProvider:
         r = await self._client.get(url, headers={"Authorization": f"Bearer {token}"},
                                    follow_redirects=True)
         r.raise_for_status()
-        return r.json().get("result", [])
+        data = r.json()
+        return data.get("value") or data.get("result") or data.get("Nodes") or []
 
     async def _download_partial(self, product_id: str, name: str,
                                 scenes_dir, progress_cb) -> str:

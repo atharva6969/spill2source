@@ -57,7 +57,7 @@ class DetectionPipeline:
                          ck.get("val_dice", -1))
         if self._unet is not None and mode in ("auto", "unet"):
             from .unet import predict_large
-            mask = predict_large(self._unet, sigma_db).astype(bool) & sea
+            mask = predict_large(self._unet, sigma_db, sea_mask=sea, batch_size=32).astype(bool) & sea
             # light morphological cleanup
             mask = ndimage.binary_closing(mask, np.ones((3, 3)))
             return mask
