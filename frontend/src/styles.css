@@ -505,6 +505,8 @@ body {
   border: 1px solid rgba(99, 102, 241, 0.08);
   box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slideInLeft 0.4s ease;
 }
 
@@ -537,6 +539,8 @@ body {
   border: 1px solid rgba(99, 102, 241, 0.08);
   box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slideInRight 0.4s ease;
 }
 
@@ -681,7 +685,57 @@ body {
 .panel-body {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.5) rgba(10, 18, 36, 0.4);
+}
+
+/* Custom Cybernetic Scrollbar styling */
+.panel-body::-webkit-scrollbar,
+.feed::-webkit-scrollbar,
+.events-feed::-webkit-scrollbar,
+.slicks-feed::-webkit-scrollbar,
+.panel::-webkit-scrollbar,
+.slick-detail::-webkit-scrollbar,
+.right::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.panel-body::-webkit-scrollbar-track,
+.feed::-webkit-scrollbar-track,
+.events-feed::-webkit-scrollbar-track,
+.slicks-feed::-webkit-scrollbar-track,
+.panel::-webkit-scrollbar-track,
+.slick-detail::-webkit-scrollbar-track,
+.right::-webkit-scrollbar-track {
+  background: rgba(10, 18, 36, 0.4);
+  border-radius: 4px;
+}
+
+.panel-body::-webkit-scrollbar-thumb,
+.feed::-webkit-scrollbar-thumb,
+.events-feed::-webkit-scrollbar-thumb,
+.slicks-feed::-webkit-scrollbar-thumb,
+.panel::-webkit-scrollbar-thumb,
+.slick-detail::-webkit-scrollbar-thumb,
+.right::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.45);
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.panel-body::-webkit-scrollbar-thumb:hover,
+.feed::-webkit-scrollbar-thumb:hover,
+.events-feed::-webkit-scrollbar-thumb:hover,
+.slicks-feed::-webkit-scrollbar-thumb:hover,
+.panel::-webkit-scrollbar-thumb:hover,
+.slick-detail::-webkit-scrollbar-thumb:hover,
+.right::-webkit-scrollbar-thumb:hover {
+  background: var(--indigo-accent);
+  box-shadow: 0 0 10px var(--indigo-glow);
 }
 
 .feed {

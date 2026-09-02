@@ -41,7 +41,7 @@ def candidate_vessels(store, origin_lon: float, origin_lat: float,
 
     Returns {mmsi: {'fixes': [(ts, lon, lat, sog, cog)], 'min_d_km': ...}}
     """
-    radius_km = max(3.0 * sigma_km + 4.0, 12.0)
+    radius_km = max(3.0 * sigma_km + 10.0, 50.0)
     t0 = release_ts - window_before_h * 3600
     t1 = release_ts + window_after_h * 3600
     rows = store.query(
