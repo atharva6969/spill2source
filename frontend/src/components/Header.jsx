@@ -34,9 +34,10 @@ export default function Header({
       return isLive ? { state: 'live', label: 'LIVE' } : { state: 'stale', label: 'LATE' }
     }
     if (key === 'met') {
+      const isFresh = status.met?.ready && Date.now() / 1000 - (status.met.last_refresh || 0) < 7200
+      if (isFresh) return { state: 'live', label: 'OK' }
       if (status.met?.error) return { state: 'down', label: 'ERR' }
-      const isReady = status.met?.ready && Date.now() / 1000 - (status.met.last_refresh || 0) < 7200
-      return isReady ? { state: 'live', label: 'OK' } : { state: 'stale', label: 'OLD' }
+      return status.met?.ready ? { state: 'stale', label: 'OLD' } : { state: 'idle', label: 'WAIT' }
     }
     if (key === 'sat') {
       return status.cdse_configured
