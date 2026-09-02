@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 
 const LEDS = [
-  { key: 'ais', label: 'AIS TRAFFIC', desc: 'Live AIS vessel data' },
-  { key: 'met', label: 'MET-OCEAN', desc: 'Wind & wave fields' },
-  { key: 'sat', label: 'SENTINEL-1 SAR', desc: 'Copernicus radar imagery' },
+  { key: 'ais', label: 'AIS', desc: 'Live AIS vessel data' },
+  { key: 'met', label: 'WAVES', desc: 'Wind & wave fields' },
+  { key: 'sat', label: 'SAR', desc: 'Copernicus radar imagery' },
 ]
 
 export default function Header({
@@ -27,23 +27,23 @@ export default function Header({
   }, [])
 
   const ledState = (key) => {
-    if (!status) return { state: 'idle', label: 'CONNECTING' }
+    if (!status) return { state: 'idle', label: 'WAIT' }
     if (key === 'ais') {
-      if (status.ais?.error) return { state: 'down', label: 'OFFLINE' }
+      if (status.ais?.error) return { state: 'down', label: 'OFF' }
       const isLive = Date.now() / 1000 - (status.ais?.last_poll || 0) < 90
-      return isLive ? { state: 'live', label: 'ONLINE' } : { state: 'stale', label: 'DELAYED' }
+      return isLive ? { state: 'live', label: 'LIVE' } : { state: 'stale', label: 'LATE' }
     }
     if (key === 'met') {
-      if (status.met?.error) return { state: 'down', label: 'ERROR' }
+      if (status.met?.error) return { state: 'down', label: 'ERR' }
       const isReady = status.met?.ready && Date.now() / 1000 - (status.met.last_refresh || 0) < 7200
-      return isReady ? { state: 'live', label: 'READY' } : { state: 'stale', label: 'STALE' }
+      return isReady ? { state: 'live', label: 'OK' } : { state: 'stale', label: 'OLD' }
     }
     if (key === 'sat') {
       return status.cdse_configured
-        ? { state: 'live', label: 'ACTIVE' }
-        : { state: 'idle', label: 'PUBLIC' }
+        ? { state: 'live', label: 'ON' }
+        : { state: 'idle', label: 'PUB' }
     }
-    return { state: 'idle', label: 'STANDBY' }
+    return { state: 'idle', label: '—' }
   }
 
   const fmtTime = (d) =>
@@ -56,19 +56,19 @@ export default function Header({
     <header className="hdr">
       <div className="brand">
         <div className="brand-logo" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="9" strokeOpacity="0.4" />
-            <circle cx="12" cy="12" r="5" strokeOpacity="0.7" />
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="12" r="9" strokeOpacity="0.3" />
+            <circle cx="12" cy="12" r="5" strokeOpacity="0.6" />
             <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" strokeOpacity="0.5" />
+            <path d="M12 3v3M12 18v3M3 12h3M18 12h3" strokeOpacity="0.4" />
           </svg>
         </div>
         <div className="brand-text">
           <div className="brand-title-row">
             <h1>SLICKTRACE</h1>
-            <span className="system-tag">SENTINEL-1 MONITOR</span>
+            <span className="system-tag">S1 MONITOR</span>
           </div>
-          <p>Gulf of Finland · Automated SAR Spill Detection & AIS Attribution</p>
+          <p>Gulf of Finland · SAR Oil-Spill Intelligence</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ export default function Header({
                 <polyline points="2 17 12 22 22 17" />
                 <polyline points="2 12 12 17 22 12" />
               </svg>
-              <span>{basemaps[basemapKey]?.name || 'Basemap'}</span>
+              <span>{basemaps[basemapKey]?.name || 'Map'}</span>
             </button>
             {basemapOpen && (
               <div className="basemap-dropdown">
@@ -126,7 +126,7 @@ export default function Header({
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="12 2 19 21 12 17 5 21 12 2" />
           </svg>
-          <span>AIS TRAFFIC</span>
+          <span>VESSELS</span>
         </button>
 
         {/* Risk Layer Toggle */}
@@ -135,13 +135,13 @@ export default function Header({
           onClick={onToggleRisk}
           title={
             riskStatus?.trained
-              ? `Spill Risk Model active · Spatial AUC ${riskStatus.auc_mean?.toFixed(2)}`
+              ? `Spill Risk Analytics active · Spatial AUC ${riskStatus.auc_mean?.toFixed(2)}`
               : 'Toggle predictive spill risk layer'
           }>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
           </svg>
-          <span>SPILL RISK LAYER</span>
+          <span>RISK</span>
           {riskStatus?.trained && (
             <span className="risk-auc mono">AUC {riskStatus.auc_mean?.toFixed(2)}</span>
           )}
@@ -156,7 +156,7 @@ export default function Header({
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
             <path d="M3 3v5h5" />
           </svg>
-          <span>RESET AOI</span>
+          <span>RESET</span>
         </button>
 
         {/* Live UTC Clock */}

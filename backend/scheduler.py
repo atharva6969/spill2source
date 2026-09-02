@@ -180,10 +180,11 @@ class System:
                     await self.hub.broadcast(
                         {"type": "scene_status", "product_id": product_id,
                          "status": "fetching", "name": meta["name"]})
+                    footprint = json.loads(meta["footprint"]) if meta.get("footprint") else None
                     loop = asyncio.get_running_loop()
                     sigma_db, transform = await loop.run_in_executor(
                         None, self.sh.fetch_sigma0_db,
-                        self.settings.aoi_bbox, meta["sensed_start"], "vv")
+                        self.settings.aoi_bbox, meta["sensed_start"], "vv", footprint)
                     slick_ids = await self.detector.process_sh(
                         product_id, sigma_db, transform, "vv",
                         broadcast=self._broadcast)

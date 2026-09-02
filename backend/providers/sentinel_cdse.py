@@ -144,17 +144,30 @@ class CdseProvider:
 
     async def _list_nodes(self, url: str) -> list[dict]:
         token = await self._get_token()
-        r = await self._client.get(url, headers={"Authorization": f"Bearer {token}"},
-                                   follow_redirects=True)
-        r.raise_for_status()
-        data = r.json()
-        return data.get("value") or data.get("result") or data.get("Nodes") or []
+        curr_url = url
+        for _ in range(5):
+            r = await self._client.get(curr_url, headers={"Authorization": f"Bearer {token}"},
+                                       follow_redirects=False)
+            if r.status_code in (301, 302, 303, 307, 308):
+                loc = r.headers.get("location")
+                if not loc:
+                    raise RuntimeError("nodes redirect without location")
+                curr_url = loc
+                continue
+            r.raise_for_status()
+            data = r.json()
+            return data.get("value") or data.get("result") or data.get("Nodes") or []
+        return []
 
     async def _download_partial(self, product_id: str, name: str,
                                 scenes_dir, progress_cb) -> str:
         """Download only the VV (else VH) band tiff + its calibration XML into a
         reconstructed <name>.SAFE dir the detection pipeline reads unchanged."""
-        base = f"{ODATA}/Products({product_id})/Nodes({name})"
+        top_nodes = await self._list_nodes(f"{ODATA}/Products({product_id})/Nodes")
+        if not top_nodes:
+            raise RuntimeError("no top-level product node")
+        top_name = top_nodes[0]["Name"]
+        base = f"{ODATA}/Products({product_id})/Nodes({top_name})"
         meas = await self._list_nodes(f"{base}/Nodes(measurement)/Nodes")
         tiffs = [n for n in meas if n["Name"].lower().endswith((".tiff", ".tif"))]
         if not tiffs:

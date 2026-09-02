@@ -73,7 +73,7 @@ export default function App() {
         getJSON('/api/risk/grid?min_p=0.05')
           .then(setRiskData)
           .catch(() => {
-            showToast('Risk model not trained yet — run scripts/train_risk_model.py')
+            showToast('Risk analytics not initialized — run scripts/train_risk_model.py')
             setRiskOn(false)
           })
       }
@@ -236,7 +236,7 @@ export default function App() {
           className="dock-toggle-btn"
           onClick={() => setLeftPanelOpen(!leftPanelOpen)}
           title={leftPanelOpen ? 'Collapse side dock' : 'Expand side dock'}>
-          {leftPanelOpen ? '\u25c0' : '\u25b6'}
+          {leftPanelOpen ? '<' : '>'}
         </button>
         {leftPanelOpen && (
           <LeftPanel
@@ -259,7 +259,7 @@ export default function App() {
           className="dock-toggle-btn right-toggle-btn"
           onClick={() => setRightPanelOpen(!rightPanelOpen)}
           title={rightPanelOpen ? 'Collapse inspector dock' : 'Expand inspector dock'}>
-          {rightPanelOpen ? '\u25b6' : '\u25c0'}
+          {rightPanelOpen ? '>' : '<'}
         </button>
         {rightPanelOpen && (
           vesselMmsi ? (

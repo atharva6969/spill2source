@@ -75,9 +75,11 @@ def dice_loss(logits, target, eps=1.0):
 def predict_mask(model, tile_db: np.ndarray, thr: float = 0.5) -> np.ndarray:
     """tile_db: HxW float dB -> binary mask uint8."""
     model.eval()
+    device = next(model.parameters()).device
     with torch.inference_mode():
-        x = torch.from_numpy(normalize(tile_db))[None, None]
-        logit = model(x)[0, 0]
+        x = torch.from_numpy(normalize(tile_db))[None, None].to(device)
+        with torch.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
+            logit = model(x)[0, 0]
         return (torch.sigmoid(logit) > thr).cpu().numpy().astype(np.uint8)
 
 
@@ -86,11 +88,11 @@ def predict_large(model, img_db: np.ndarray, tile: int = 256, thr: float = 0.5,
                   batch_size: int = 32, sea_mask: np.ndarray | None = None) -> np.ndarray:
     """Run the U-Net over a large dB image with high-performance batched inference."""
     model.eval()
+    device = next(model.parameters()).device
     h, w = img_db.shape
     out = np.zeros((h, w), dtype=np.uint8)
 
     if h < tile or w < tile:
-        # Pad image to minimum tile size if necessary
         pad_h = max(tile - h, 0)
         pad_w = max(tile - w, 0)
         padded = np.pad(img_db, ((0, pad_h), (0, pad_w)), mode="constant", constant_values=np.nan)
@@ -127,8 +129,9 @@ def predict_large(model, img_db: np.ndarray, tile: int = 256, thr: float = 0.5,
             batch_coords = valid_tiles[i:i + batch_size]
             batch_np = np.stack([norm_img[y0:y1, x0:x1] for (y0, y1, x0, x1) in batch_coords], axis=0)
             # shape: (B, 1, tile, tile)
-            batch_tensor = torch.from_numpy(batch_np[:, None, :, :])
-            logits = model(batch_tensor)[:, 0]
+            batch_tensor = torch.from_numpy(batch_np[:, None, :, :]).to(device)
+            with torch.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
+                logits = model(batch_tensor)[:, 0]
             masks = (torch.sigmoid(logits) > thr).cpu().numpy().astype(np.uint8)
 
             for (y0, y1, x0, x1), m in zip(batch_coords, masks):

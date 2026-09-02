@@ -300,12 +300,12 @@ export default function MapView({
       const pts = bw.path.centroid_path.map((p) => [p[1], p[0]])
       const line = L.polyline(pts, {
         color: C.amber,
-        weight: 2.2,
-        dashArray: '4 6',
+        weight: 2.5,
+        dashArray: '5 6',
         opacity: 0.9,
       }).addTo(grp)
-      line.bindTooltip('Backward Drift Hindcast', {
-        permanent: true,
+      line.bindTooltip('Backward Drift Hindcast Path', {
+        permanent: false,
         direction: 'right',
         offset: [6, 0],
         className: 'map-label',
@@ -320,8 +320,8 @@ export default function MapView({
         dashArray: '8 5',
         opacity: 0.85,
       }).addTo(grp)
-      line.bindTooltip('Forward Forecast', {
-        permanent: true,
+      line.bindTooltip('Forward Forecast Path', {
+        permanent: false,
         direction: 'right',
         offset: [6, 0],
         className: 'map-label',
@@ -350,8 +350,8 @@ export default function MapView({
         fillColor: C.spill,
         fillOpacity: 0.45,
       })
-        .bindTooltip('Detected Slick Footprint (Sentinel-1)', {
-          permanent: true,
+        .bindTooltip(`Slick #${detail.id} Footprint (${detail.area_km2} km²)`, {
+          permanent: false,
           direction: 'top',
           className: 'map-label',
         })
@@ -366,8 +366,8 @@ export default function MapView({
         iconAnchor: [22, 22],
       })
       L.marker([bw.origin_lat, bw.origin_lon], { icon })
-        .bindTooltip(`Estimated Release Point (σ ≈ ${bw.origin_sigma_km.toFixed(1)} km)`, {
-          permanent: true,
+        .bindTooltip(`Estimated Release Origin (±${bw.origin_sigma_km.toFixed(1)} km)`, {
+          permanent: false,
           direction: 'top',
           offset: [0, -22],
           className: 'map-label',

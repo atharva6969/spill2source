@@ -96,19 +96,47 @@ class SentinelHubProvider:
             "evalscript": _EVALSCRIPT % (band, band),
         }
         token = self._get_token()
-        r = self._client.post(PROCESS_URL, json=body,
-                              headers={"Authorization": f"Bearer {token}"})
-        if r.status_code != 200:
-            raise RuntimeError(f"SH process {r.status_code}: {r.text[:300]}")
-        with rasterio.MemoryFile(r.content) as mem, mem.open() as ds:
-            return ds.read(1).astype(np.float32)
+        
+        last_exc: Exception | None = None
+        for attempt in range(4):
+            try:
+                r = self._client.post(PROCESS_URL, json=body,
+                                      headers={"Authorization": f"Bearer {token}"})
+                if r.status_code == 429 or r.status_code >= 500:
+                    log.warning("SH process status %d attempt %d, retrying after sleep...",
+                                r.status_code, attempt + 1)
+                    time.sleep(2 * (attempt + 1))
+                    continue
+                if r.status_code != 200:
+                    raise RuntimeError(f"SH process {r.status_code}: {r.text[:300]}")
+                with rasterio.MemoryFile(r.content) as mem, mem.open() as ds:
+                    return ds.read(1).astype(np.float32)
+            except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+                last_exc = exc
+                log.warning("SH tile fetch attempt %d failed: %s", attempt + 1, exc)
+                time.sleep(2 * (attempt + 1))
+        raise RuntimeError(f"SH fetch_tile failed after 4 attempts: {last_exc}")
 
-    def fetch_sigma0_db(self, bbox, sensed_start: float, pol: str = "vv"):
+    def fetch_sigma0_db(self, bbox, sensed_start: float, pol: str = "vv",
+                        scene_footprint: list | None = None):
         """Return (sigma0_db float32, north-up affine transform in EPSG:4326).
 
         ``sensed_start`` is the scene acquisition epoch; a +/-6 h window around
         it isolates the single overpass.
+        If ``scene_footprint`` is provided, crops ``bbox`` to the intersection of
+        the scene footprint and ``bbox``.
         """
+        if scene_footprint:
+            try:
+                import shapely.geometry
+                aoi_poly = shapely.geometry.box(*bbox)
+                sc_poly = shapely.geometry.shape({"type": "Polygon", "coordinates": scene_footprint})
+                inter = aoi_poly.intersection(sc_poly)
+                if not inter.is_empty:
+                    bbox = inter.bounds
+            except Exception as exc:
+                log.warning("Failed to intersect scene footprint: %s", exc)
+
         x0, y0, x1, y1 = bbox
         lat_c = (y0 + y1) / 2
         deg_lon = self.settings.sh_resolution_m / (111_320 * math.cos(
@@ -131,7 +159,7 @@ class SentinelHubProvider:
                 # tile bbox from the mosaic transform (row grows southward)
                 tx0, ty1 = transform * (c0, r0)
                 tx1, ty0 = transform * (c0 + tw, r0 + th)
-                tasks.append((r0, c0, th, tw, (tx0, ty0, tx1, ty0)))
+                tasks.append((r0, c0, th, tw, (tx0, ty0, tx1, ty1)))
 
         def _fetch_worker(item):
             r0, c0, th, tw, tbbox = item
@@ -139,7 +167,7 @@ class SentinelHubProvider:
             return r0, c0, th, tw, t_data
 
         import concurrent.futures
-        workers = min(len(tasks), 8) if tasks else 1
+        workers = min(len(tasks), 2) if tasks else 1
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(_fetch_worker, tasks))
 

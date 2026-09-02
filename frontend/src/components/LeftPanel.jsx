@@ -291,7 +291,7 @@ export default function LeftPanel({
                             className="evt-action-btn slick-action"
                             onClick={() => onOpenSlick(Number(slickMatch))}>
                             <span>VIEW SLICK #{slickMatch}</span>
-                            <span className="arr">→</span>
+                            <span className="arr">&gt;</span>
                           </button>
                         )}
                         {mmsiMatch && onSelectVessel && (
@@ -299,7 +299,7 @@ export default function LeftPanel({
                             className="evt-action-btn vessel-action"
                             onClick={() => onSelectVessel(Number(mmsiMatch))}>
                             <span>TRACK MMSI {mmsiMatch}</span>
-                            <span className="arr">→</span>
+                            <span className="arr">&gt;</span>
                           </button>
                         )}
                         {isSceneEvent && (
@@ -307,7 +307,7 @@ export default function LeftPanel({
                             className="evt-action-btn scene-action"
                             onClick={() => setTab('scenes')}>
                             <span>VIEW SCENES</span>
-                            <span className="arr">→</span>
+                            <span className="arr">&gt;</span>
                           </button>
                         )}
                       </div>
@@ -326,16 +326,16 @@ export default function LeftPanel({
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4">
                   <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                 </svg>
-                <p className="empty-title">Risk Model Offline</p>
+                <p className="empty-title">Risk Analytics Offline</p>
                 <p className="empty-desc">
-                  Spatial risk model is not yet trained. Run offline training script to enable threat map.
+                  Spatial risk engine is not yet initialized. Run offline training script to enable threat map.
                 </p>
               </div>
             ) : (
               <>
                 <div className="risk-card">
                   <div className="risk-card-hdr">
-                    <h4>HISTORICAL SPILL RISK MODEL</h4>
+                    <h4>HISTORICAL SPILL RISK ANALYTICS</h4>
                     <span className="risk-auc-pill mono">AUC {riskStatus.auc_mean?.toFixed(3)}</span>
                   </div>
                   <p className="risk-desc">
