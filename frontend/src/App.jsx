@@ -24,6 +24,7 @@ export default function App() {
   const [rightPanelOpen, setRightPanelOpen] = useState(true)
   const [showVessels, setShowVessels] = useState(true)
   const [basemapKey, setBasemapKey] = useState('dark')
+  const [projection, setProjection] = useState('globe')
   const toastTimerRef = useRef(null)
 
   const showToast = useCallback((m) => {
@@ -209,6 +210,7 @@ export default function App() {
           riskData={riskData}
           showVessels={showVessels}
           basemapKey={basemapKey}
+          projection={projection}
           leftPanelOpen={leftPanelOpen}
           rightPanelOpen={rightPanelOpen}
           onSelectSlick={openSlick}
@@ -227,6 +229,9 @@ export default function App() {
         basemapKey={basemapKey}
         onSelectBasemap={setBasemapKey}
         basemaps={BASEMAPS}
+        projection={projection}
+        onToggleProjection={() =>
+          setProjection((p) => (p === 'globe' ? 'flat' : 'globe'))}
         onResetView={resetAOI}
       />
 

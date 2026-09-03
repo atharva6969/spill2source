@@ -5,6 +5,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import math
 import time
 from pathlib import Path
 
@@ -132,12 +133,22 @@ async def scan_scene(product_id: str):
     return res
 
 
+def _sanitize_floats(obj):
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    elif isinstance(obj, dict):
+        return {k: _sanitize_floats(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_floats(v) for v in obj]
+    return obj
+
+
 # ---- slicks + analysis -------------------------------------------------------------
 def _slick_row(r: dict) -> dict:
     r = dict(r)
     r["geometry"] = json.loads(r["geometry"]) if r["geometry"] else None
     r["properties"] = json.loads(r["properties"]) if r["properties"] else {}
-    return r
+    return _sanitize_floats(r)
 
 
 @app.get("/api/slicks")
@@ -180,7 +191,7 @@ async def slick_detail(slick_id: int):
         if not s.get("reasoning"):
             s["reasoning"] = generate_reasoning(s["factors"])
     out["suspects"] = sus
-    return out
+    return _sanitize_floats(out)
 
 
 
@@ -282,7 +293,10 @@ if DIST.exists():
         candidate = (DIST / path).resolve()
         if path and candidate.is_file() and str(candidate).startswith(str(DIST.resolve())):
             return FileResponse(candidate)
-        return FileResponse(DIST / "index.html")
+        return FileResponse(
+            DIST / "index.html",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+        )
 else:
     @app.get("/")
     async def no_frontend():

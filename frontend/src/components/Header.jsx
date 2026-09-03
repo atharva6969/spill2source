@@ -16,6 +16,8 @@ export default function Header({
   basemapKey,
   onSelectBasemap,
   basemaps,
+  projection,
+  onToggleProjection,
   onResetView,
 }) {
   const [now, setNow] = useState(new Date())
@@ -87,6 +89,23 @@ export default function Header({
       </nav>
 
       <div className="header-actions">
+        {/* 3D Globe / Flat Mercator projection toggle */}
+        <button
+          className={`header-btn ${projection === 'globe' ? 'on' : ''}`}
+          onClick={onToggleProjection}
+          title={
+            projection === 'globe'
+              ? '3D globe projection — click for flat mercator'
+              : 'Flat mercator projection — click for 3D globe'
+          }>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3.2 9h17.6M3.2 15h17.6" strokeOpacity="0.6" />
+            <path d="M12 3c3 3.4 3 14.6 0 18M12 3c-3 3.4-3 14.6 0 18" strokeOpacity="0.6" />
+          </svg>
+          <span>{projection === 'globe' ? '3D GLOBE' : 'FLAT MAP'}</span>
+        </button>
+
         {/* Basemap Switcher */}
         {basemaps && (
           <div className="toolbar-group">
