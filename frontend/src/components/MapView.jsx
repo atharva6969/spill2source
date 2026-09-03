@@ -231,7 +231,7 @@ export default function MapView({
     const grp = L.featureGroup(
       pts.map((v) =>
         L.circleMarker(v.ll, {
-          radius: 3.5,
+          radius: 4,
           color: v.p.navStat === 15 ? '#475569' : C.good,
           weight: 1.5,
           fillColor: C.good,
