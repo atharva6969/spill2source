@@ -92,7 +92,9 @@ export default function VesselCard({ details, onShowTrack, onClose }) {
         <button className="icon-btn" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
 
-      <section className="kv-grid">
+      <div className="panel-body">
+        <section className="kv-grid">
+
         <div className="kv-item">
           <span>MMSI</span>
           <b className="mono">{details.mmsi}</b>
@@ -196,6 +198,8 @@ export default function VesselCard({ details, onShowTrack, onClose }) {
         onClick={() => onShowTrack(details.mmsi)}>
         <span>DISPLAY 18-HOUR AIS TRACK</span>
       </button>
+      </div>
     </aside>
   )
 }
+

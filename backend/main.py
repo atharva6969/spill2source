@@ -65,13 +65,21 @@ async def status():
 
 
 # ---- live AIS ------------------------------------------------------------------
+_vessel_meta_cache: dict[int, dict] = {}
+_vessel_meta_cached_at: float = 0.0
+
 @app.get("/api/vessels/live")
 async def vessels_live():
+    global _vessel_meta_cache, _vessel_meta_cached_at
+    now = time.time()
+    if now - _vessel_meta_cached_at > 30.0:  # cache for 30 seconds
+        _vessel_meta_cache = {r["mmsi"]: r for r in store.query(
+            "SELECT mmsi,name,ship_type FROM vessels")}
+        _vessel_meta_cached_at = now
+
     feats = []
-    metas = {r["mmsi"]: r for r in store.query(
-        "SELECT mmsi,name,ship_type FROM vessels")}
     for mmsi, p in system.ais.latest.items():
-        m = metas.get(mmsi, {})
+        m = _vessel_meta_cache.get(mmsi, {})
         feats.append({
             "type": "Feature",
             "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]},
@@ -81,6 +89,7 @@ async def vessels_live():
                            "shipType": m.get("ship_type")},
         })
     return {"type": "FeatureCollection", "features": feats}
+
 
 
 @app.get("/api/vessels/{mmsi}/track")
@@ -159,6 +168,7 @@ async def slick_detail(slick_id: int):
     sus = store.query("SELECT mmsi,score,rank,factors,computed_at FROM suspects "
                       "WHERE slick_id=? ORDER BY rank LIMIT 15", (slick_id,))
     names = {v["mmsi"]: v for v in store.query("SELECT mmsi,name,ship_type,length,width,imo,dest,draught FROM vessels")}
+    from .attribution.score import generate_reasoning
     for s in sus:
         s["factors"] = json.loads(s["factors"])
         meta = names.get(s["mmsi"], {})
@@ -167,8 +177,11 @@ async def slick_detail(slick_id: int):
         s["length"] = meta.get("length"); s["width"] = meta.get("width")
         s["imo"] = meta.get("imo"); s["dest"] = meta.get("dest")
         s["draught"] = meta.get("draught")
+        if not s.get("reasoning"):
+            s["reasoning"] = generate_reasoning(s["factors"])
     out["suspects"] = sus
     return out
+
 
 
 @app.post("/api/slicks/{slick_id}/analyze")

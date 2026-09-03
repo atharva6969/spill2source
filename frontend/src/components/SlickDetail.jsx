@@ -103,7 +103,8 @@ export default function SlickDetail({
         <button className="icon-btn" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
 
-      {/* Target Properties Grid */}
+      <div className="panel-body">
+
       <section className="props-grid">
         <div className="prop-card">
           <span className="prop-lbl">SURFACE AREA</span>
@@ -214,35 +215,45 @@ export default function SlickDetail({
                     />
                   </div>
                   <b className="mono score-val">{s.score.toFixed(0)}</b>
+                  <span className="expand-indicator mono dim">{openRow === s.mmsi ? '▲' : '▼'}</span>
                 </div>
               </div>
 
-              {/* Quick Action Buttons */}
-              <div className="suspect-actions-row">
-                <button
-                  className="btn-action-chip focus-chip"
-                  title="Fly map directly to vessel's position at estimated release time"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    locateAtRelease(s)
-                  }}>
-                  🎯 FOCUS AT RELEASE
-                </button>
-                <button
-                  className="btn-action-chip track-chip"
-                  title="Plot 18-hour historical AIS track line"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onSelectVessel(s.mmsi)
-                  }}>
-                  📈 SHOW 18-HR AIS TRACK
-                </button>
-              </div>
-
-              {/* Expandable Factor Breakdown & Evidence */}
-              {openRow === s.mmsi && (
+              {/* Expandable Reasoning, Actions & Evidence Breakdown */}
+              {(openRow === s.mmsi || isTop) && (
                 <div className="factors-panel">
+                  {/* Automated Attribution Reasoning */}
+                  {s.reasoning && (
+                    <div className="suspect-reasoning-box">
+                      <span className="reasoning-title">⚖️ ATTRIBUTION REASONING</span>
+                      <p className="reasoning-text">{s.reasoning}</p>
+                    </div>
+                  )}
+
+                  {/* Quick Action Buttons */}
+                  <div className="suspect-actions-row">
+                    <button
+                      className="btn-action-chip focus-chip"
+                      title="Fly map directly to vessel's position at estimated release time"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        locateAtRelease(s)
+                      }}>
+                      🎯 FOCUS AT RELEASE
+                    </button>
+                    <button
+                      className="btn-action-chip track-chip"
+                      title="Plot 18-hour historical AIS track line"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onSelectVessel(s.mmsi)
+                      }}>
+                      📈 SHOW 18-HR AIS TRACK
+                    </button>
+                  </div>
+
                   <span className="factors-hdr">EVIDENCE & CORRELATION BREAKDOWN</span>
+
                   {Object.entries(s.factors || {}).map(([k, v]) => {
                     const factorScorePct = Math.round((v.score || 0) * 100)
                     const label = FACTOR_LABEL[k] || k
@@ -279,6 +290,8 @@ export default function SlickDetail({
           )
         })}
       </ol>
+      </div>
     </aside>
   )
 }
+

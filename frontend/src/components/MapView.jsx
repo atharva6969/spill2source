@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, memo } from 'react'
 import L from 'leaflet'
 
 export const BASEMAPS = {
@@ -49,7 +49,7 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;')
 }
 
-export default function MapView({
+const MapView = memo(function MapView({
   vessels,
   slicks,
   detail,
@@ -421,4 +421,6 @@ export default function MapView({
       </div>
     </div>
   )
-}
+})
+
+export default MapView

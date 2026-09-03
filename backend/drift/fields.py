@@ -53,20 +53,42 @@ class FieldSet:
         c1 = c01 * (1 - fy) + c11 * fy
         return float(c0 * (1 - ft) + c1 * ft)
 
+    def sample_batch(self, lats: np.ndarray, lons: np.ndarray, t: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Vectorized sample for arrays of (lats, lons) at epoch time t.
+
+        Returns (cur_u, cur_v, wind_u, wind_v) arrays of shape (N,).
+        """
+        ix = np.clip(np.searchsorted(self.lons, lons) - 1, 0, len(self.lons) - 2)
+        fx = np.clip((lons - self.lons[ix]) / (self.lons[ix + 1] - self.lons[ix]), 0.0, 1.0)
+        iy = np.clip(np.searchsorted(self.lats, lats) - 1, 0, len(self.lats) - 2)
+        fy = np.clip((lats - self.lats[iy]) / (self.lats[iy + 1] - self.lats[iy]), 0.0, 1.0)
+        it, ft = self._it(t)
+
+        wu = self._bilinear_batch(self.wind_u, iy, fy, ix, fx, it, ft)
+        wv = self._bilinear_batch(self.wind_v, iy, fy, ix, fx, it, ft)
+        cu = self._bilinear_batch(self.cur_u, iy, fy, ix, fx, it, ft)
+        cv = self._bilinear_batch(self.cur_v, iy, fy, ix, fx, it, ft)
+        return cu, cv, wu, wv
+
+    @staticmethod
+    def _bilinear_batch(field: np.ndarray, iy, fy, ix, fx, it, ft) -> np.ndarray:
+        c00 = field[iy, ix, it] * (1.0 - fx) + field[iy, ix + 1, it] * fx
+        c10 = field[iy + 1, ix, it] * (1.0 - fx) + field[iy + 1, ix + 1, it] * fx
+        c0 = c00 * (1.0 - fy) + c10 * fy
+        c01 = field[iy, ix, it + 1] * (1.0 - fx) + field[iy, ix + 1, it + 1] * fx
+        c11 = field[iy + 1, ix, it + 1] * (1.0 - fx) + field[iy + 1, ix + 1, it + 1] * fx
+        c1 = c01 * (1.0 - fy) + c11 * fy
+        res = c0 * (1.0 - ft) + c1 * ft
+        return np.nan_to_num(res, nan=0.0)
+
     def sample(self, lat: float, lon: float, t: float) -> dict:
         """Returns {'wind': (u,v), 'current': (u,v)} in m/s at time t (epoch s)."""
-        ix, fx = self._ix(lon)
-        iy, fy = self._iy(lat)
-        it, ft = self._it(t)
-        nan = math.isnan
-        wu = self._bilinear(self.wind_u, iy, fy, ix, fx, it, ft)
-        wv = self._bilinear(self.wind_v, iy, fy, ix, fx, it, ft)
-        cu = self._bilinear(self.cur_u, iy, fy, ix, fx, it, ft)
-        cv = self._bilinear(self.cur_v, iy, fy, ix, fx, it, ft)
+        cu, cv, wu, wv = self.sample_batch(np.array([lat]), np.array([lon]), t)
         return {
-            "wind": (0.0 if nan(wu) else wu, 0.0 if nan(wv) else wv),
-            "current": (0.0 if nan(cu) else cu, 0.0 if nan(cv) else cv),
+            "wind": (float(wu[0]), float(wv[0])),
+            "current": (float(cu[0]), float(cv[0])),
         }
 
     def covers(self, t0: float, t1: float) -> bool:
         return self.times[0] <= t0 <= t1 <= self.times[-1]
+

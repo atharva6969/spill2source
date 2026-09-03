@@ -54,6 +54,11 @@ class DetectionPipeline:
                 self._unet.load_state_dict(ck['state_dict'])
                 self._unet.to(device)
                 self._unet.eval()
+                try:
+                    dummy_input = torch.zeros(1, 1, 256, 256, device=device)
+                    self._unet = torch.jit.optimize_for_inference(torch.jit.trace(self._unet, dummy_input))
+                except Exception:
+                    pass
         if self._unet is not None and mode in ("auto", "unet"):
             from .unet import predict_large
             mask = predict_large(self._unet, sigma_db, sea_mask=sea, batch_size=32).astype(bool) & sea

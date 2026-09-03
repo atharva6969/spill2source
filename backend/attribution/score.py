@@ -104,20 +104,73 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
                                "evidence": ev_beh},
         }
         total = sum(factors[k]["score"] * factors[k]["weight"] for k in WEIGHTS)
+        type_lbl = ev_type.split(":")[0] if ev_type else "?"
+        reasoning_str = generate_reasoning(factors, cd["min_d_km"], type_lbl)
+
         results.append({
             "mmsi": mmsi,
             "name": meta.get("name"),
             "ship_type": meta.get("ship_type"),
-            "type_label": ev_type.split(":")[0] if ev_type else "?",
+            "type_label": type_lbl,
             "min_dist_km": round(cd["min_d_km"], 2),
             "n_fixes": len(fixes),
             "score": round(total * 100, 1),
+            "reasoning": reasoning_str,
             "factors": factors,
         })
     results.sort(key=lambda r: -r["score"])
     for i, r in enumerate(results):
         r["rank"] = i + 1
     return results
+
+
+def generate_reasoning(factors: dict, min_dist_km: float | None = None, type_label: str | None = None) -> str:
+    """Synthesize a human-readable attribution explanation for why a vessel is flagged as a suspect."""
+    parts = []
+    
+    # 1. Proximity
+    prox_ev = factors.get("proximity", {}).get("evidence", "")
+    prox_score = factors.get("proximity", {}).get("score", 0)
+    if prox_score > 0.3 or "closest approach" in prox_ev:
+        parts.append(f"Vessel passed in close proximity ({prox_ev})")
+
+    # 2. Crossing
+    cross_score = factors.get("crossing", {}).get("score", 0)
+    cross_ev = factors.get("crossing", {}).get("evidence", "")
+    if cross_score >= 0.5:
+        parts.append(f"Track geometry intersects spill footprint ({cross_ev})")
+
+    # 3. AIS Gap
+    gap_score = factors.get("ais_gap", {}).get("score", 0)
+    gap_ev = factors.get("ais_gap", {}).get("evidence", "")
+    if gap_score > 0.1 and "silent" in gap_ev.lower():
+        parts.append(f"Detected suspicious AIS blackout ({gap_ev})")
+
+    # 4. Speed Anomaly
+    speed_score = factors.get("speed_anomaly", {}).get("score", 0)
+    speed_ev = factors.get("speed_anomaly", {}).get("evidence", "")
+    if speed_score > 0.4:
+        parts.append(f"Exhibited loitering / low-speed behavior ({speed_ev})")
+
+    # 5. Vessel Type Risk
+    type_score = factors.get("type_prior", {}).get("score", 0)
+    type_ev = factors.get("type_prior", {}).get("evidence", "")
+    if type_score >= 0.7:
+        parts.append(f"High-risk vessel category ({type_ev})")
+
+    # 6. Drift Alignment
+    align_score = factors.get("course_align", {}).get("score", 0)
+    align_ev = factors.get("course_align", {}).get("evidence", "")
+    if align_score > 0.5:
+        parts.append(f"Course aligns with slick drift trajectory ({align_ev})")
+
+    if parts:
+        return ". ".join(parts) + "."
+    elif min_dist_km is not None:
+        return f"Spatio-temporal correlation near release point ({min_dist_km:.1f} km approach)."
+    else:
+        return "Correlated with estimated spill release location and time window."
+
 
 
 # ---- individual factors ------------------------------------------------------

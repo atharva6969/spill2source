@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS ais_positions (
     UNIQUE(mmsi, ts)
 );
 CREATE INDEX IF NOT EXISTS ix_ais_ts ON ais_positions(ts);
+CREATE INDEX IF NOT EXISTS ix_ais_mmsi_ts ON ais_positions(mmsi, ts);
 
 CREATE TABLE IF NOT EXISTS vessels (
     mmsi INTEGER PRIMARY KEY,
@@ -98,6 +99,9 @@ class Store:
         self._lock = threading.Lock()
         with self._lock, self._conn:
             self._conn.execute("PRAGMA busy_timeout = 30000")
+            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn.execute("PRAGMA synchronous = NORMAL")
+            self._conn.execute("PRAGMA cache_size = -64000")
             self._conn.executescript(SCHEMA)
 
     def exec(self, sql: str, params: Iterable = ()) -> None:
