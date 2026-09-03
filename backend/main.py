@@ -5,7 +5,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import math
 import time
 from pathlib import Path
 
@@ -26,7 +25,7 @@ DIST = ROOT / "frontend" / "dist"
 
 store = Store(settings.db_path)
 system: System | None = None
-app = FastAPI(title="SlickTrace - Oil Spill Detection & Vessel Attribution",
+app = FastAPI(title="SPILL2SOURCE - Oil Spill Detection & Vessel Attribution",
               version="1.0")
 
 # ---- simple API-key auth ---------------------------------------------------
@@ -66,21 +65,13 @@ async def status():
 
 
 # ---- live AIS ------------------------------------------------------------------
-_vessel_meta_cache: dict[int, dict] = {}
-_vessel_meta_cached_at: float = 0.0
-
 @app.get("/api/vessels/live")
 async def vessels_live():
-    global _vessel_meta_cache, _vessel_meta_cached_at
-    now = time.time()
-    if now - _vessel_meta_cached_at > 30.0:  # cache for 30 seconds
-        _vessel_meta_cache = {r["mmsi"]: r for r in store.query(
-            "SELECT mmsi,name,ship_type FROM vessels")}
-        _vessel_meta_cached_at = now
-
     feats = []
+    metas = {r["mmsi"]: r for r in store.query(
+        "SELECT mmsi,name,ship_type FROM vessels")}
     for mmsi, p in system.ais.latest.items():
-        m = _vessel_meta_cache.get(mmsi, {})
+        m = metas.get(mmsi, {})
         feats.append({
             "type": "Feature",
             "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]},
@@ -90,7 +81,6 @@ async def vessels_live():
                            "shipType": m.get("ship_type")},
         })
     return {"type": "FeatureCollection", "features": feats}
-
 
 
 @app.get("/api/vessels/{mmsi}/track")
@@ -133,22 +123,12 @@ async def scan_scene(product_id: str):
     return res
 
 
-def _sanitize_floats(obj):
-    if isinstance(obj, float):
-        return None if (math.isnan(obj) or math.isinf(obj)) else obj
-    elif isinstance(obj, dict):
-        return {k: _sanitize_floats(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_sanitize_floats(v) for v in obj]
-    return obj
-
-
 # ---- slicks + analysis -------------------------------------------------------------
 def _slick_row(r: dict) -> dict:
     r = dict(r)
     r["geometry"] = json.loads(r["geometry"]) if r["geometry"] else None
     r["properties"] = json.loads(r["properties"]) if r["properties"] else {}
-    return _sanitize_floats(r)
+    return r
 
 
 @app.get("/api/slicks")
@@ -179,7 +159,6 @@ async def slick_detail(slick_id: int):
     sus = store.query("SELECT mmsi,score,rank,factors,computed_at FROM suspects "
                       "WHERE slick_id=? ORDER BY rank LIMIT 15", (slick_id,))
     names = {v["mmsi"]: v for v in store.query("SELECT mmsi,name,ship_type,length,width,imo,dest,draught FROM vessels")}
-    from .attribution.score import generate_reasoning
     for s in sus:
         s["factors"] = json.loads(s["factors"])
         meta = names.get(s["mmsi"], {})
@@ -188,11 +167,8 @@ async def slick_detail(slick_id: int):
         s["length"] = meta.get("length"); s["width"] = meta.get("width")
         s["imo"] = meta.get("imo"); s["dest"] = meta.get("dest")
         s["draught"] = meta.get("draught")
-        if not s.get("reasoning"):
-            s["reasoning"] = generate_reasoning(s["factors"])
     out["suspects"] = sus
-    return _sanitize_floats(out)
-
+    return out
 
 
 @app.post("/api/slicks/{slick_id}/analyze")
@@ -293,10 +269,7 @@ if DIST.exists():
         candidate = (DIST / path).resolve()
         if path and candidate.is_file() and str(candidate).startswith(str(DIST.resolve())):
             return FileResponse(candidate)
-        return FileResponse(
-            DIST / "index.html",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
-        )
+        return FileResponse(DIST / "index.html")
 else:
     @app.get("/")
     async def no_frontend():

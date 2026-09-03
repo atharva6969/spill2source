@@ -71,18 +71,11 @@ def dice_loss(logits, target, eps=1.0):
     return 1 - (num / den).mean()
 
 
-def _get_device(model: nn.Module) -> torch.device:
-    try:
-        return next(model.parameters()).device
-    except (StopIteration, AttributeError):
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 @torch.no_grad()
 def predict_mask(model, tile_db: np.ndarray, thr: float = 0.5) -> np.ndarray:
     """tile_db: HxW float dB -> binary mask uint8."""
     model.eval()
-    device = _get_device(model)
+    device = next(model.parameters()).device
     with torch.inference_mode():
         x = torch.from_numpy(normalize(tile_db))[None, None].to(device)
         with torch.autocast(device_type=device.type, enabled=(device.type == 'cuda')):
@@ -95,7 +88,7 @@ def predict_large(model, img_db: np.ndarray, tile: int = 256, thr: float = 0.5,
                   batch_size: int = 32, sea_mask: np.ndarray | None = None) -> np.ndarray:
     """Run the U-Net over a large dB image with high-performance batched inference."""
     model.eval()
-    device = _get_device(model)
+    device = next(model.parameters()).device
     h, w = img_db.shape
     out = np.zeros((h, w), dtype=np.uint8)
 

@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
-import 'maplibre-gl/dist/maplibre-gl.css'
 import './styles.css'
 
 class ErrorBoundary extends React.Component {
@@ -15,7 +14,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('SlickTrace crashed:', error, info)
+    console.error('SPILL2SOURCE crashed:', error, info)
   }
 
   render() {

@@ -1,5 +1,5 @@
 {
-  "name": "slicktrace-frontend",
+  "name": "spill2source-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "maplibre-gl": "~5.24.0",
+    "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

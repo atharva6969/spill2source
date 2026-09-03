@@ -47,11 +47,6 @@ def candidate_vessels(store, origin_lon: float, origin_lat: float,
     rows = store.query(
         "SELECT mmsi, ts, lon, lat, sog, cog FROM ais_positions "
         "WHERE ts BETWEEN ? AND ?", (t0, t1))
-    if not rows:
-        # Fallback: query latest available AIS positions if timestamp has no historical overlap
-        rows = store.query(
-            "SELECT mmsi, ts, lon, lat, sog, cog FROM ais_positions "
-            "ORDER BY ts DESC LIMIT 2000")
     out: dict[int, dict] = {}
     for r in rows:
         d = haversine_km(origin_lon, origin_lat, r["lon"], r["lat"])

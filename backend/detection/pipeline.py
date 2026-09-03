@@ -20,6 +20,7 @@ from shapely.geometry import Polygon, shape
 from backend.providers.sentinel_cdse import parse_product_name
 from . import darkspot, classify, characterize
 from .features import patch_features
+from .unet import UNetSmall
 from .sar_preprocess import (LandMask, find_measurement, lee_despeckle,
                              read_sigma0_db, unpack_safe)
 
@@ -48,18 +49,12 @@ class DetectionPipeline:
             self._unet_loaded = True
             if ckpt.exists() and mode in ("auto", "unet"):
                 import torch
-                from .unet import UNetSmall
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 ck = torch.load(ckpt, weights_only=False)
                 self._unet = UNetSmall(base=ck.get('base', 16))
                 self._unet.load_state_dict(ck['state_dict'])
                 self._unet.to(device)
                 self._unet.eval()
-                try:
-                    dummy_input = torch.zeros(1, 1, 256, 256, device=device)
-                    self._unet = torch.jit.optimize_for_inference(torch.jit.trace(self._unet, dummy_input))
-                except Exception:
-                    pass
         if self._unet is not None and mode in ("auto", "unet"):
             from .unet import predict_large
             mask = predict_large(self._unet, sigma_db, sea_mask=sea, batch_size=32).astype(bool) & sea

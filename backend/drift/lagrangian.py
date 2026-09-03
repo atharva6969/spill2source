@@ -28,9 +28,6 @@ class LocalFrame:
     def to_ll(self, x: float, y: float) -> tuple[float, float]:
         return (self.lon0 + x / self.mx, self.lat0 + y / self.my)
 
-    def to_ll_batch(self, x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        return (self.lon0 + x / self.mx, self.lat0 + y / self.my)
-
 
 class DriftModel:
     def __init__(self, fields, settings):
@@ -65,21 +62,31 @@ class DriftModel:
 
     # ---- dynamics ------------------------------------------------------------
     def _velocity(self, xy: np.ndarray, t: float, frame: LocalFrame) -> np.ndarray:
-        """Deterministic + diffusive velocity [m/s] for all particles (vectorized)."""
-        lons, lats = frame.to_ll_batch(xy[:, 0], xy[:, 1])
-        cu, cv, wu, wv = self.f.sample_batch(lats, lons, t)
-
-        # windage: fraction of wind speed, deflected right (NH Ekman/leeway)
-        th = math.radians(self.s.windage_deflection_deg)
-        cos_th, sin_th = math.cos(th), math.sin(th)
-        uw = self.s.windage_factor * wu
-        vw = self.s.windage_factor * wv
-
-        det = np.empty((len(xy), 2), dtype=float)
-        det[:, 0] = cu + (uw * cos_th + vw * sin_th) + (self.s.stokes_factor * wu)
-        det[:, 1] = cv + (-uw * sin_th + vw * cos_th) + (self.s.stokes_factor * wv)
+        """Deterministic + diffusive velocity [m/s] for all particles."""
+        n = len(xy)
+        det = np.zeros((n, 2))
+        cu = wu = 0.0
+        for i, (x, y) in enumerate(xy):
+            lon, lat = frame.to_ll(x, y)
+            smp = self.f.sample(lat, lon, t)
+            cu_, cv_ = smp["current"]
+            wu_, wv_ = smp["wind"]
+            cu += cu_; wu += wu_
+            det[i, 0] = cu_
+            det[i, 1] = cv_
+            # windage: fraction of wind speed, deflected right (NH Ekman/leeway)
+            th = math.radians(self.s.windage_deflection_deg)
+            uw = self.s.windage_factor * wu_
+            vw = self.s.windage_factor * wv_
+            det[i, 0] += uw * math.cos(th) + vw * math.sin(th)
+            det[i, 1] += -uw * math.sin(th) + vw * math.cos(th)
+            # Stokes drift approximation: aligned with wind
+            det[i, 0] += self.s.stokes_factor * wu_
+            det[i, 1] += self.s.stokes_factor * wv_
+        # NOTE: stochastic diffusion is applied to positions in _integrate
+        # (Euler-Maruyama), not to velocities.
+        _ = cu, wu
         return det
-
 
     def _integrate(self, xy0: np.ndarray, t0: float, hours: float,
                    frame: LocalFrame) -> dict:
