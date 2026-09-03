@@ -48,6 +48,7 @@ class DetectionPipeline:
             self._unet_loaded = True
             if ckpt.exists() and mode in ("auto", "unet"):
                 import torch
+                from .unet import UNetSmall
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
                 ck = torch.load(ckpt, weights_only=False)
                 self._unet = UNetSmall(base=ck.get('base', 16))
