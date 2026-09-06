@@ -133,13 +133,23 @@ class Store:
 
     def upsert_vessels(self, metas: list[dict]) -> None:
         now = time.time()
-        rows = [{
-            "mmsi": int(m["mmsi"]), "name": m.get("name"),
-            "shipType": m.get("shipType"), "destination": m.get("dest") or m.get("destination"),
-            "draught": m.get("draught"), "imo": m.get("imo"),
-            "callSign": m.get("callSign"), "length": m.get("length") or 0,
-            "width": m.get("width") or 0, "updated": now,
-        } for m in metas if m.get("mmsi")]
+        rows = []
+        for m in metas:
+            if not m.get("mmsi"):
+                continue
+            try:
+                mmsi_int = int(m["mmsi"])
+            except (ValueError, TypeError):
+                continue
+            rows.append({
+                "mmsi": mmsi_int, "name": m.get("name"),
+                "shipType": m.get("shipType"), "destination": m.get("dest") or m.get("destination"),
+                "draught": m.get("draught"), "imo": m.get("imo"),
+                "callSign": m.get("callSign"), "length": m.get("length") or 0,
+                "width": m.get("width") or 0, "updated": now,
+            })
+        if not rows:
+            return
         with self._lock, self._conn:
             self._conn.executemany(
                 """INSERT INTO vessels(mmsi,name,ship_type,dest,draught,imo,call_sign,length,width,updated)

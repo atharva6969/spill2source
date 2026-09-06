@@ -266,8 +266,8 @@ export default function LeftPanel({
               )}
 
               {filteredEvents.map((e, i) => {
-                const slickMatch = e.payload?.slick_ids?.[0] || (e.message || '').match(/slick #?(\d+)/i)?.[1]
-                const mmsiMatch = e.payload?.mmsi || (e.message || '').match(/MMSI (\d{9})/)?.[1]
+                const slickMatch = e.payload?.slick_ids?.[0] || e.payload?.slick_id || (e.message || '').match(/slick #?(\d+)/i)?.[1]
+                const mmsiMatch = e.payload?.mmsi || e.payload?.top_suspect || (e.message || '').match(/MMSI (\d{9})/i)?.[1]
                 const isSceneEvent = e.category === 'scene' || (e.message || '').includes('.SAFE')
 
                 return (

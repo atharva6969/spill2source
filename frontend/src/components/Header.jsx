@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const LEDS = [
   { key: 'ais', label: 'AIS', desc: 'Live AIS vessel data' },
@@ -20,11 +20,23 @@ export default function Header({
 }) {
   const [now, setNow] = useState(new Date())
   const [basemapOpen, setBasemapOpen] = useState(false)
+  const basemapGroupRef = useRef(null)
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
+
+  useEffect(() => {
+    if (!basemapOpen) return
+    const handleClickOutside = (e) => {
+      if (basemapGroupRef.current && !basemapGroupRef.current.contains(e.target)) {
+        setBasemapOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [basemapOpen])
 
   const ledState = (key) => {
     if (!status) return { state: 'idle', label: 'WAIT' }
@@ -89,7 +101,7 @@ export default function Header({
       <div className="header-actions">
         {/* Basemap Switcher */}
         {basemaps && (
-          <div className="toolbar-group">
+          <div className="toolbar-group" ref={basemapGroupRef}>
             <button
               className={`header-btn ${basemapOpen ? 'active' : ''}`}
               onClick={() => setBasemapOpen(!basemapOpen)}

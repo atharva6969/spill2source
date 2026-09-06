@@ -24,9 +24,19 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "frontend" / "dist"
 
 store = Store(settings.db_path)
-system: System | None = None
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    global system
+    system = System(store)
+    system.start()
+    yield
+    if system:
+        await system.shutdown()
+    store.close()
+
+
 app = FastAPI(title="SPILL2SOURCE - Oil Spill Detection & Vessel Attribution",
-              version="1.0")
+              version="1.0", lifespan=lifespan)
 
 # ---- simple API-key auth ---------------------------------------------------
 API_KEY = settings.api_key
@@ -43,19 +53,6 @@ if API_KEY:
 
     app.add_middleware(_AuthMiddleware)
 
-
-@app.on_event("startup")
-async def _startup() -> None:
-    global system
-    system = System(store)
-    system.start()
-
-
-@app.on_event("shutdown")
-async def _shutdown() -> None:
-    if system:
-        await system.shutdown()
-    store.close()
 
 
 # ---- status ------------------------------------------------------------------

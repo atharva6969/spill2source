@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getJSON } from '../api.js'
 
 const FACTOR_LABEL = {
   proximity: 'Closest Approach',
@@ -76,8 +77,7 @@ export default function SlickDetail({
     const rel = bw?.release_time
     if (!rel) return
     const qs = `from_ts=${rel - 3 * 3600}&to_ts=${rel + 3 * 3600}`
-    fetch(`/api/vessels/${s.mmsi}/track?${qs}`)
-      .then((r) => r.json())
+    getJSON(`/api/vessels/${s.mmsi}/track?${qs}`)
       .then((tr) => {
         if (!tr.points?.length) return
         window.dispatchEvent(

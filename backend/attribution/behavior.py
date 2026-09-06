@@ -53,7 +53,10 @@ def _shore_lookup():
     from shapely.geometry import Polygon
     polys = []
     for p in lm.polys:
-        polys.append(p if isinstance(p, Polygon) else list(p.geoms))
+        if isinstance(p, Polygon):
+            polys.append(p)
+        elif hasattr(p, "geoms"):
+            polys.extend(list(p.geoms))
     transform = F._grid_transform(lons, lats, cell)
     nx, ny = len(lons), len(lats)
     land = rio_features.rasterize([(g, 1) for g in polys],

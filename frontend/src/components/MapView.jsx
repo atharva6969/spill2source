@@ -139,14 +139,17 @@ export default function MapView({
   // --- Vessel Track Draw ----------------------------------------------------
   const drawVesselTrack = (tr) => {
     const lg = layerRef.current
-    if (!lg || !tr.points.length) return
-    const ll = tr.points.map((p) => [p[1], p[0]])
+    if (!lg) return
     if (mapRef.current._trackLine) {
       lg.removeLayer(mapRef.current._trackLine)
-      lg.removeLayer(mapRef.current._trackStart)
+      if (mapRef.current._trackStart) lg.removeLayer(mapRef.current._trackStart)
       if (mapRef.current._trackAt) lg.removeLayer(mapRef.current._trackAt)
+      mapRef.current._trackLine = null
+      mapRef.current._trackStart = null
       mapRef.current._trackAt = null
     }
+    if (!tr || !tr.points || !tr.points.length) return
+    const ll = tr.points.map((p) => [p[1], p[0]])
     mapRef.current._trackLine = L.polyline(ll, {
       color: C.amber,
       weight: 2.5,
