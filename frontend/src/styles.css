@@ -2,37 +2,37 @@
    Deep indigo glass gradients, vibrant neon glows, micro-animations */
 
 :root {
-  --bg-abyss: #060B18;
-  --bg-surface: #0F172A;
-  --bg-hud: rgba(10, 18, 36, 0.78);
-  --bg-card: rgba(15, 23, 42, 0.55);
-  --bg-card-hover: rgba(30, 41, 59, 0.7);
-  --bg-card-active: rgba(30, 41, 59, 0.9);
+  --bg-abyss: #050914;
+  --bg-surface: #0E1628;
+  --bg-hud: rgba(8, 14, 28, 0.85);
+  --bg-card: linear-gradient(145deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.45) 100%);
+  --bg-card-hover: linear-gradient(145deg, rgba(30, 41, 59, 0.85) 0%, rgba(47, 63, 86, 0.55) 100%);
+  --bg-card-active: linear-gradient(145deg, rgba(30, 41, 59, 0.95) 0%, rgba(51, 65, 85, 0.8) 100%);
 
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --border-subtle: rgba(255, 255, 255, 0.05);
 
   --primary-emerald: #10B981;
   --primary-mint: #34D399;
-  --primary-glow: rgba(16, 185, 129, 0.3);
+  --primary-glow: rgba(16, 185, 129, 0.35);
 
   --secondary-cyan: #00F0FF;
-  --secondary-glow: rgba(0, 240, 255, 0.2);
+  --secondary-glow: rgba(0, 240, 255, 0.25);
 
   --indigo-accent: #6366F1;
-  --indigo-glow: rgba(99, 102, 241, 0.3);
+  --indigo-glow: rgba(99, 102, 241, 0.35);
 
   --alert-coral: #FF4655;
-  --alert-glow: rgba(255, 70, 85, 0.35);
+  --alert-glow: rgba(255, 70, 85, 0.4);
 
   --amber-warning: #F59E0B;
-  --amber-glow: rgba(245, 158, 11, 0.3);
+  --amber-glow: rgba(245, 158, 11, 0.35);
 
-  --text-primary: #E2E8F0;
-  --text-variant: #94A3B8;
-  --text-muted: #64748B;
-  --text-dim: #475569;
+  --text-primary: #F8FAFC;
+  --text-variant: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
 
   --font-sans: 'Plus Jakarta Sans', 'Outfit', system-ui, -apple-system, sans-serif;
   --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -44,13 +44,13 @@
   --radius-xl: 20px;
   --radius-pill: 100px;
 
-  --glass-blur: blur(12px);
+  --glass-blur: blur(16px);
   --glass-border: 1px solid var(--border-glass);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  --glass-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  --glass-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -453,7 +453,7 @@ body {
   position: absolute;
   top: 78px;
   left: 14px;
-  width: 340px;
+  width: 360px;
   max-height: calc(100vh - 130px);
   z-index: 900;
   display: flex;
@@ -500,9 +500,9 @@ body {
   width: 100%;
   height: calc(100vh - 130px);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(10, 18, 36, 0.82) 0%, rgba(15, 23, 42, 0.75) 100%);
+  background: linear-gradient(180deg, rgba(10, 18, 36, 0.86) 0%, rgba(15, 23, 42, 0.8) 100%);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.12);
   box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
   display: flex;
@@ -518,7 +518,7 @@ body {
   position: absolute;
   top: 78px;
   right: 14px;
-  width: 380px;
+  width: 400px;
   max-height: calc(100vh - 130px);
   z-index: 900;
   display: flex;
@@ -534,9 +534,9 @@ body {
   width: 100%;
   height: calc(100vh - 130px);
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(10, 18, 36, 0.82) 0%, rgba(15, 23, 42, 0.75) 100%);
+  background: linear-gradient(180deg, rgba(10, 18, 36, 0.86) 0%, rgba(15, 23, 42, 0.8) 100%);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.12);
   box-shadow: var(--glass-shadow-lg);
   overflow: hidden;
   display: flex;
@@ -1036,14 +1036,16 @@ body {
 }
 
 .slick-row:hover {
-  border-color: rgba(255, 70, 85, 0.35);
+  border-color: rgba(255, 70, 85, 0.45);
   background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 70, 85, 0.15);
 }
 
 .slick-row.on {
   border-color: var(--alert-coral);
-  background: linear-gradient(135deg, rgba(255, 70, 85, 0.1) 0%, var(--bg-card-active) 100%);
-  box-shadow: 0 0 24px var(--alert-glow);
+  background: linear-gradient(135deg, rgba(255, 70, 85, 0.12) 0%, var(--bg-card-active) 100%);
+  box-shadow: 0 0 24px var(--alert-glow), 0 8px 28px rgba(0, 0, 0, 0.5);
 }
 
 .slick-row-top {
@@ -1105,12 +1107,13 @@ body {
   flex-direction: column;
   gap: 10px;
   transition: all var(--transition-fast);
-
 }
 
 .scene-card:hover {
   border-color: var(--border-hover);
   background: var(--bg-card-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.6), 0 0 18px rgba(99, 102, 241, 0.12);
 }
 
 .scene-card-hdr {
@@ -1343,7 +1346,7 @@ body {
 
 .coord-strip {
   position: absolute;
-  left: 368px;
+  left: 388px;
   bottom: 58px;
   z-index: 800;
   font-size: 11px;
@@ -1351,7 +1354,7 @@ body {
   color: var(--secondary-cyan);
   background: rgba(10, 18, 36, 0.9);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.2);
   padding: 7px 14px;
   border-radius: var(--radius-md);
   pointer-events: none;
@@ -1365,12 +1368,12 @@ body {
 
 .map-legend {
   position: absolute;
-  left: 368px;
+  left: 388px;
   bottom: 96px;
   z-index: 800;
   background: rgba(10, 18, 36, 0.9);
   backdrop-filter: blur(20px);
-  border: var(--glass-border);
+  border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: var(--radius-md);
   padding: 12px 16px;
   font-size: 11px;
@@ -1389,7 +1392,7 @@ body {
 
 .map-legend .lg-title {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--indigo-accent);
@@ -1450,7 +1453,7 @@ body {
 
 .risk-legend {
   position: absolute;
-  right: 408px;
+  right: 428px;
   bottom: 58px;
   z-index: 800;
   display: flex;
@@ -1458,7 +1461,7 @@ body {
   gap: 10px;
   background: rgba(10, 18, 36, 0.9);
   backdrop-filter: blur(20px);
-  border: var(--glass-border);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: var(--radius-sm);
   padding: 7px 14px;
   font-size: 11px;
