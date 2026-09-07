@@ -2439,9 +2439,8 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(10, 20, 38, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 240, 255, 0.2);
+  background: rgba(10, 20, 38, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.25);
   padding: 6px 14px;
   border-radius: 20px;
   font-family: var(--font-mono);
@@ -2449,7 +2448,7 @@ button:focus-visible {
   font-weight: 600;
   color: #00f0ff;
   letter-spacing: 0.06em;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
 .brand-badge-small .live-dot {
@@ -2470,7 +2469,7 @@ button:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Main Login Panel Wrapper */
@@ -2484,20 +2483,18 @@ button:focus-visible {
   padding: 0 5vw;
 }
 
-/* Glassmorphism Card */
+/* Translucent Dark Glass Card */
 .glass-login-card {
   width: 440px;
   max-width: 90vw;
-  background: rgba(8, 14, 26, 0.65);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgba(0, 240, 255, 0.18);
+  background: rgba(8, 15, 28, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.22);
   border-radius: 20px;
   padding: 36px 32px 28px;
   box-shadow: 
-    0 16px 48px rgba(0, 0, 0, 0.65),
-    0 0 32px rgba(0, 240, 255, 0.08),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 36px rgba(0, 240, 255, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
   animation: card-appear 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -2842,11 +2839,10 @@ button:focus-visible {
 .footer-stat {
   font-family: var(--font-mono);
   font-size: 11px;
-  background: rgba(8, 14, 26, 0.7);
-  backdrop-filter: blur(12px);
+  background: rgba(8, 14, 26, 0.88);
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .footer-stat .lbl {
