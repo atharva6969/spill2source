@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
-// High-resolution public NASA Earth maps
-const EARTH_NIGHT_URL = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
+// High-definition public satellite Earth texture maps
 const EARTH_DAY_URL = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
+const EARTH_NIGHT_URL = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
 
 /**
  * Atmospheric Outer Limb Scattering Shader (FrontSide Additive)
+ * Thin, razor-sharp atmospheric cyan halo.
  */
 const AtmosphereShader = {
   vertexShader: `
@@ -32,35 +33,23 @@ const AtmosphereShader = {
       vec3 V = normalize(uCameraPos - vWorldPosition);
       vec3 L = normalize(uSunPosition - vWorldPosition);
       
-      // Razor-sharp atmospheric limb: 0 at center, 1 at silhouette edge
+      // Thin, razor-sharp atmospheric limb edge
       float NdotV = max(0.0, dot(N, V));
       float rim = 1.0 - NdotV;
-      float rimIntensity = pow(rim, 4.2);
+      float rimIntensity = pow(rim, 5.0);
       
-      // Sun alignment along the horizon limb
       float sunDot = dot(N, L);
       
-      // Multi-layer NASA atmospheric gradient:
-      // Golden sunrise amber near sun, electric cyan along flanks, deep cobalt blue on dark side
-      vec3 deepCobalt = vec3(0.01, 0.32, 0.95);
-      vec3 electricCyan = vec3(0.0, 0.90, 1.0);
-      vec3 solarGold = vec3(1.0, 0.88, 0.45);
-      vec3 fireOrange = vec3(1.0, 0.50, 0.12);
+      vec3 electricCyan = vec3(0.02, 0.85, 1.0);
+      vec3 deepSapphire = vec3(0.01, 0.20, 0.70);
+      vec3 solarGold = vec3(1.0, 0.75, 0.30);
       
-      vec3 atmosColor;
-      if (sunDot > 0.10) {
-        float t = clamp((sunDot - 0.10) / 0.90, 0.0, 1.0);
-        vec3 warmRim = mix(fireOrange, solarGold, t);
-        atmosColor = mix(electricCyan, warmRim, pow(t, 0.65));
-      } else {
-        float t = clamp((sunDot + 0.30) / 0.40, 0.0, 1.0);
-        atmosColor = mix(deepCobalt, electricCyan, t);
+      vec3 atmosColor = mix(deepSapphire, electricCyan, clamp(sunDot + 0.5, 0.0, 1.0));
+      if (sunDot > 0.4) {
+        atmosColor = mix(atmosColor, solarGold, (sunDot - 0.4) * 0.6);
       }
       
-      // Limb brightening near the rising sun
-      float limbGlow = 1.0 + max(0.0, sunDot) * 2.8;
-      
-      gl_FragColor = vec4(atmosColor * limbGlow, rimIntensity * 0.95);
+      gl_FragColor = vec4(atmosColor * 1.5, rimIntensity * 0.85);
     }
   `
 }
@@ -80,54 +69,6 @@ function createStarTexture() {
   ctx.fillStyle = grad
   ctx.beginPath()
   ctx.arc(16, 16, 16, 0, Math.PI * 2)
-  ctx.fill()
-
-  const tex = new THREE.CanvasTexture(canvas)
-  tex.needsUpdate = true
-  return tex
-}
-
-/**
- * Generate soft circular bokeh orb texture for cinematic lens feel
- */
-function createBokehTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 64
-  canvas.height = 64
-  const ctx = canvas.getContext('2d')
-  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  grad.addColorStop(0, 'rgba(255, 255, 255, 0.28)')
-  grad.addColorStop(0.5, 'rgba(255, 225, 170, 0.16)')
-  grad.addColorStop(0.85, 'rgba(90, 190, 255, 0.07)')
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)')
-  ctx.fillStyle = grad
-  ctx.beginPath()
-  ctx.arc(32, 32, 32, 0, Math.PI * 2)
-  ctx.fill()
-
-  const tex = new THREE.CanvasTexture(canvas)
-  tex.needsUpdate = true
-  return tex
-}
-
-/**
- * Generate Sunrise Solar Flare Corona Texture
- */
-function createSunriseCoronaTexture() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 256
-  canvas.height = 256
-  const ctx = canvas.getContext('2d')
-  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128)
-  grad.addColorStop(0, 'rgba(255, 255, 255, 1.0)')
-  grad.addColorStop(0.08, 'rgba(255, 250, 225, 0.95)')
-  grad.addColorStop(0.24, 'rgba(255, 205, 90, 0.68)')
-  grad.addColorStop(0.50, 'rgba(255, 125, 30, 0.28)')
-  grad.addColorStop(0.75, 'rgba(0, 190, 255, 0.06)')
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)')
-  ctx.fillStyle = grad
-  ctx.beginPath()
-  ctx.arc(128, 128, 128, 0, Math.PI * 2)
   ctx.fill()
 
   const tex = new THREE.CanvasTexture(canvas)
@@ -166,16 +107,15 @@ function EarthBackgroundComponent({ onLoaded }) {
     const height = container.clientHeight || window.innerHeight
 
     renderer.setSize(width, height)
-    // Sharp high-DPI rendering
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setClearColor(0x020409, 1.0)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.18
+    renderer.toneMappingExposure = 1.0
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
 
-    // Orbital Satellite Perspective Camera
+    // Orbital Perspective Camera
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
     camera.position.set(0, 0.15, 5.0)
     camera.lookAt(0, -0.20, 0)
@@ -183,26 +123,25 @@ function EarthBackgroundComponent({ onLoaded }) {
     // Earth group positioned lower-center for reference video composition
     const earthGroup = new THREE.Group()
     earthGroup.position.set(-0.55, -2.85, -0.10)
-    earthGroup.rotation.x = -0.12  // Gentle forward tilt
-    earthGroup.rotation.z = -0.06  // Subtle horizon arc
-    earthGroup.rotation.y = 4.65   // City lights facing view
+    earthGroup.rotation.x = -0.12
+    earthGroup.rotation.z = -0.06
+    earthGroup.rotation.y = 4.65
     scene.add(earthGroup)
 
     const EARTH_RADIUS = 3.65
     const sphereGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128)
 
-    // Sun position placed upper-left horizon
+    // Sun position (upper-left horizon)
     const sunWorldPos = new THREE.Vector3(-1.75, 1.10, -0.85)
 
-    // Realistic directional sunlight
-    const sunLight = new THREE.DirectionalLight(0xfff3e0, 3.4)
+    // Balanced directional lighting (prevents washed-out glare)
+    const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.6)
     sunLight.position.copy(sunWorldPos)
     scene.add(sunLight)
 
-    const ambientLight = new THREE.AmbientLight(0x0a1424, 0.6)
+    const ambientLight = new THREE.AmbientLight(0x081628, 0.4)
     scene.add(ambientLight)
 
-    // Shaders for Earth: Crystal clear oceans, sharp continent definition, golden city lights
     const textureLoader = new THREE.TextureLoader()
 
     const earthMat = new THREE.ShaderMaterial({
@@ -236,8 +175,8 @@ function EarthBackgroundComponent({ onLoaded }) {
         uniform vec3 uCameraPos;
         
         void main() {
-          vec3 dayTex = vec3(0.04, 0.12, 0.25);
-          vec3 nightTex = vec3(0.0, 0.0, 0.0);
+          vec3 dayTex = vec3(0.02, 0.08, 0.18);
+          vec3 nightTex = vec3(0.0);
           
           if (texture2D(uDayTexture, vUv).a > 0.0) {
             dayTex = texture2D(uDayTexture, vUv).rgb;
@@ -252,48 +191,35 @@ function EarthBackgroundComponent({ onLoaded }) {
           
           float sunDot = dot(N, L);
           
-          // 1. Differentiate ocean from landmasses using Day Texture
-          float isLand = smoothstep(0.015, 0.06, (dayTex.r + dayTex.g) * 0.7 - dayTex.b * 0.55);
+          // Differentiate landmass from ocean
+          float landMask = smoothstep(0.02, 0.08, (dayTex.r + dayTex.g) * 0.7 - dayTex.b * 0.5);
           
-          // 2. Crystal clear dark oceans (midnight indigo void)
-          vec3 deepOcean = vec3(0.004, 0.010, 0.024);
+          // Deep ocean (midnight blue)
+          vec3 ocean = vec3(0.005, 0.015, 0.035);
+          vec3 landSurface = dayTex * 0.75 + vec3(0.01, 0.02, 0.03);
+          vec3 baseSurface = mix(ocean, landSurface, landMask);
           
-          // 3. Crisp continent silhouettes
-          vec3 landmass = vec3(0.014, 0.020, 0.035) + dayTex * 0.08;
-          vec3 darkSurface = mix(deepOcean, landmass, isLand);
-          
-          // 4. Golden City Lights on night side
+          // Golden city lights on night side
           float cityLum = max(nightTex.r, max(nightTex.g, nightTex.b));
-          float cityMask = smoothstep(0.12, 0.80, cityLum) * (0.35 + 0.65 * isLand);
-          vec3 cityLights = vec3(1.0, 0.83, 0.44) * pow(cityMask, 0.85) * 5.2;
+          vec3 cityLights = vec3(1.0, 0.82, 0.42) * pow(cityLum, 1.2) * 3.8 * (0.3 + 0.7 * landMask);
           
-          vec3 nightSide = darkSurface + cityLights;
+          vec3 nightSide = baseSurface * 0.20 + cityLights;
+          vec3 daySide = baseSurface * (max(0.0, sunDot) * 1.1 + 0.10);
           
-          // 5. Day side: Natural satellite daylight
-          vec3 daySide = dayTex * (max(0.0, sunDot) * 0.90 + 0.10);
-          
-          // Ocean specular glint near sunrise
+          // Subtle ocean specular
           if (sunDot > 0.0) {
             vec3 H = normalize(L + V);
-            float spec = pow(max(0.0, dot(N, H)), 32.0);
-            daySide += vec3(1.0, 0.88, 0.65) * spec * (1.0 - isLand) * 0.45;
+            float spec = pow(max(0.0, dot(N, H)), 40.0);
+            daySide += vec3(1.0, 0.90, 0.70) * spec * (1.0 - landMask) * 0.35;
           }
           
-          // Smooth day/night terminator blend
-          float dayFactor = smoothstep(-0.06, 0.22, sunDot);
+          float dayFactor = smoothstep(-0.06, 0.18, sunDot);
+          vec3 finalSurface = mix(nightSide, daySide, dayFactor);
           
-          // Dawn / twilight atmospheric scattering across the terminator
-          float twilight = smoothstep(-0.16, 0.0, sunDot) * (1.0 - smoothstep(0.0, 0.24, sunDot));
-          vec3 twilightColor = vec3(1.0, 0.56, 0.18) * twilight * 0.70;
-          
-          vec3 finalSurface = mix(nightSide, daySide, dayFactor) + twilightColor;
-          
-          // Atmospheric surface limb haze
+          // Thin atmospheric rim haze
           float rim = 1.0 - max(0.0, dot(N, V));
-          float rimStrength = pow(rim, 4.0);
-          float sunRim = max(0.0, dot(N, L));
-          vec3 surfaceRimColor = mix(vec3(0.05, 0.72, 1.0), vec3(1.0, 0.78, 0.38), pow(sunRim, 2.0));
-          finalSurface += surfaceRimColor * rimStrength * 0.60;
+          float rimStrength = pow(rim, 4.5);
+          finalSurface += vec3(0.02, 0.75, 1.0) * rimStrength * 0.50;
           
           gl_FragColor = vec4(finalSurface, 1.0);
         }
@@ -302,7 +228,6 @@ function EarthBackgroundComponent({ onLoaded }) {
       depthTest: true
     })
 
-    // Load NASA Maps with maximum anisotropic filtering
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy() || 16
 
     textureLoader.load(EARTH_NIGHT_URL, (tex) => {
@@ -332,8 +257,8 @@ function EarthBackgroundComponent({ onLoaded }) {
     const earthMesh = new THREE.Mesh(sphereGeo, earthMat)
     earthGroup.add(earthMesh)
 
-    // Atmospheric Horizon Glow Shell (Limb) - FrontSide Additive
-    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.014, 128, 128)
+    // Atmospheric Horizon Glow Shell (Limb)
+    const atmosGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.012, 128, 128)
     const atmosMat = new THREE.ShaderMaterial({
       vertexShader: AtmosphereShader.vertexShader,
       fragmentShader: AtmosphereShader.fragmentShader,
@@ -350,29 +275,15 @@ function EarthBackgroundComponent({ onLoaded }) {
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat)
     earthGroup.add(atmosMesh)
 
-    // Sunrise Horizon Corona Flare (Soft circular glow right at the upper-left horizon)
-    const coronaTex = createSunriseCoronaTexture()
-    const coronaMat = new THREE.SpriteMaterial({
-      map: coronaTex,
-      blending: THREE.AdditiveBlending,
-      transparent: true,
-      depthWrite: false,
-      depthTest: false
-    })
-    const coronaSprite = new THREE.Sprite(coronaMat)
-    coronaSprite.position.copy(sunWorldPos)
-    coronaSprite.scale.set(2.2, 2.2, 1.0)
-    scene.add(coronaSprite)
-
     // Sparse, Subtle Pinpoint Starfield
-    const starCount = 1100
+    const starCount = 1000
     const starGeo = new THREE.BufferGeometry()
     const starPositions = new Float32Array(starCount * 3)
     const starColors = new Float32Array(starCount * 3)
     const starTex = createStarTexture()
 
     for (let i = 0; i < starCount; i++) {
-      const radius = 70 + Math.random() * 110
+      const radius = 70 + Math.random() * 100
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(Math.random() * 2 - 1)
 
@@ -380,27 +291,16 @@ function EarthBackgroundComponent({ onLoaded }) {
       starPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
       starPositions[i * 3 + 2] = radius * Math.cos(phi)
 
-      const tint = Math.random()
-      if (tint > 0.85) {
-        starColors[i * 3] = 1.0
-        starColors[i * 3 + 1] = 0.92
-        starColors[i * 3 + 2] = 0.78
-      } else if (tint > 0.5) {
-        starColors[i * 3] = 0.82
-        starColors[i * 3 + 1] = 0.92
-        starColors[i * 3 + 2] = 1.0
-      } else {
-        starColors[i * 3] = 0.90
-        starColors[i * 3 + 1] = 0.90
-        starColors[i * 3 + 2] = 0.94
-      }
+      starColors[i * 3] = 0.90
+      starColors[i * 3 + 1] = 0.94
+      starColors[i * 3 + 2] = 1.0
     }
 
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
     starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3))
 
     const starMat = new THREE.PointsMaterial({
-      size: 1.8,
+      size: 1.6,
       map: starTex,
       vertexColors: true,
       transparent: true,
@@ -412,58 +312,12 @@ function EarthBackgroundComponent({ onLoaded }) {
     const starField = new THREE.Points(starGeo, starMat)
     scene.add(starField)
 
-    // Subtle Floating Dust Orbs
-    const bokehCount = 24
-    const bokehGeo = new THREE.BufferGeometry()
-    const bokehPositions = new Float32Array(bokehCount * 3)
-    const bokehColors = new Float32Array(bokehCount * 3)
-    const bokehVelocities = []
-    const bokehTex = createBokehTexture()
-
-    for (let i = 0; i < bokehCount; i++) {
-      bokehPositions[i * 3] = (Math.random() - 0.5) * 6.0
-      bokehPositions[i * 3 + 1] = Math.random() * 3.5 - 0.5
-      bokehPositions[i * 3 + 2] = 1.2 + Math.random() * 2.5
-
-      const isWarm = Math.random() > 0.5
-      if (isWarm) {
-        bokehColors[i * 3] = 1.0
-        bokehColors[i * 3 + 1] = 0.88
-        bokehColors[i * 3 + 2] = 0.65
-      } else {
-        bokehColors[i * 3] = 0.65
-        bokehColors[i * 3 + 1] = 0.88
-        bokehColors[i * 3 + 2] = 1.0
-      }
-
-      bokehVelocities.push({
-        vx: (Math.random() - 0.5) * 0.0003,
-        vy: (Math.random() - 0.5) * 0.0003
-      })
-    }
-
-    bokehGeo.setAttribute('position', new THREE.BufferAttribute(bokehPositions, 3))
-    bokehGeo.setAttribute('color', new THREE.BufferAttribute(bokehColors, 3))
-
-    const bokehMat = new THREE.PointsMaterial({
-      size: 20.0,
-      map: bokehTex,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.14,
-      sizeAttenuation: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    })
-    const bokehParticles = new THREE.Points(bokehGeo, bokehMat)
-    scene.add(bokehParticles)
-
-    // Subtle parallax mouse interaction
+    // Mouse parallax
     let mouseX = 0
     let mouseY = 0
     const handleMouseMove = (e) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.06
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 0.06
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.05
+      mouseY = (e.clientY / window.innerHeight - 0.5) * 0.05
     }
     window.addEventListener('mousemove', handleMouseMove)
 
@@ -472,25 +326,12 @@ function EarthBackgroundComponent({ onLoaded }) {
     const animate = () => {
       animFrameId = requestAnimationFrame(animate)
 
-      // Cinematic slow rotation
-      earthGroup.rotation.y += 0.00018
-
-      // Gentle bokeh orb drift
-      const posAttr = bokehGeo.attributes.position
-      for (let i = 0; i < bokehCount; i++) {
-        let x = posAttr.getX(i) + bokehVelocities[i].vx
-        let y = posAttr.getY(i) + bokehVelocities[i].vy
-        if (x > 4.5) x = -3.5
-        if (x < -3.5) x = 4.5
-        if (y > 3.5) y = -0.5
-        if (y < -0.5) y = 3.5
-        posAttr.setXY(i, x, y)
-      }
-      posAttr.needsUpdate = true
+      // Smooth cinematic revolving Earth rotation
+      earthGroup.rotation.y += 0.00022
 
       // Subtle parallax camera breathing
       camera.position.x += (mouseX - camera.position.x) * 0.020
-      camera.position.y += (0.28 - mouseY - camera.position.y) * 0.020
+      camera.position.y += (0.15 - mouseY - camera.position.y) * 0.020
 
       // Update shader uniforms
       earthMat.uniforms.uCameraPos.value.copy(camera.position)
@@ -512,7 +353,6 @@ function EarthBackgroundComponent({ onLoaded }) {
       camera.updateProjectionMatrix()
       renderer.setSize(w, h)
 
-      // Responsive composition
       if (w < 768) {
         camera.position.set(0, 0.35, 5.6)
         earthGroup.position.set(0, -3.20, -0.30)
@@ -537,21 +377,16 @@ function EarthBackgroundComponent({ onLoaded }) {
       earthMat.dispose()
       atmosGeo.dispose()
       atmosMat.dispose()
-      coronaMat.dispose()
-      coronaTex.dispose()
       starGeo.dispose()
       starMat.dispose()
       starTex.dispose()
-      bokehGeo.dispose()
-      bokehMat.dispose()
-      bokehTex.dispose()
 
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement)
       }
       renderer.dispose()
     }
-  }, []) // Empty dependency array guarantees zero re-mounting on keystrokes/re-renders
+  }, [])
 
   if (webglError) {
     return <div className="space-fallback-bg" />
@@ -560,6 +395,5 @@ function EarthBackgroundComponent({ onLoaded }) {
   return <div ref={mountRef} className="space-3d-canvas-container" />
 }
 
-// React.memo prevents any re-rendering when parent state changes
 const EarthBackground = React.memo(EarthBackgroundComponent)
 export default EarthBackground

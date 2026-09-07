@@ -79,50 +79,7 @@ export default function LoginPage({ onLoginSuccess }) {
         </div>
       </header>
 
-      {/* Telemetry Metrics Header (Reference Video Style: 30.30 | 04x | 118) */}
-      <div className="ref-telemetry-bar">
-        <div className="ref-telemetry-item">
-          <span className="ref-telemetry-val">1,139</span>
-          <span className="ref-telemetry-lbl">Slicks Tracked</span>
-        </div>
-        <div className="ref-telemetry-item">
-          <span className="ref-telemetry-val">508</span>
-          <span className="ref-telemetry-lbl">Vessels Live</span>
-        </div>
-        <div className="ref-telemetry-item">
-          <span className="ref-telemetry-val">99.4%</span>
-          <span className="ref-telemetry-lbl">Attribution Score</span>
-        </div>
-      </div>
-
-      {/* Curved Orbital Ring with Rotated Text over Earth Rim (Reference Video Feature) */}
-      <div className="ref-orbit-ring-container" aria-hidden="true">
-        <svg className="ref-orbit-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax slice">
-          <defs>
-            <path
-              id="earthOrbitArc"
-              d="M 100 520 A 420 420 0 0 1 900 520"
-              fill="none"
-            />
-          </defs>
-          {/* Subtle Orbit Track Line */}
-          <path
-            d="M 100 520 A 420 420 0 0 1 900 520"
-            fill="none"
-            stroke="rgba(6, 201, 232, 0.25)"
-            strokeWidth="1.2"
-            strokeDasharray="6 6"
-          />
-          {/* Curved Text along Orbit Track */}
-          <text className="ref-orbit-text">
-            <textPath href="#earthOrbitArc" startOffset="0%">
-              • SENTINEL-1A • AIS TELEMETRY • SPILL ATTRIBUTION • S1 MONITOR • EARTH OBSERVATION • AI CORRELATION • MARITIME RADAR
-            </textPath>
-          </text>
-        </svg>
-      </div>
-
-      {/* Left Title Section (Reference Video Typography: Planet X style) */}
+      {/* Left Title Section (Reference Video Typography Style) */}
       <div className="ref-hero-title-block">
         <h1 className="ref-hero-title">
           <span>Global Marine</span>
