@@ -2383,6 +2383,173 @@ button:focus-visible {
 }
 
 /* ═══════════════════════════════════════════════
+   3D GLOBE — MapLibre canvas & Space Backdrop
+   ═══════════════════════════════════════════════ */
+
+.map-wrap .map {
+  z-index: 1;
+}
+
+.maplibregl-map,
+.maplibregl-canvas-container,
+.maplibregl-canvas {
+  background: transparent;
+}
+
+.space-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 95% at 50% 45%, rgba(12, 32, 66, 0.55) 0%, rgba(2, 5, 12, 0) 65%),
+    radial-gradient(70% 60% at 82% 12%, rgba(0, 227, 253, 0.07) 0%, rgba(2, 5, 12, 0) 70%),
+    #02040A;
+}
+
+.space-backdrop::before,
+.space-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: -10%;
+}
+
+.space-backdrop::before {
+  background-image:
+    radial-gradient(1.3px 1.3px at 24px 38px, rgba(255, 255, 255, 0.95), transparent 100%),
+    radial-gradient(1px 1px at 148px 22px, rgba(214, 232, 255, 0.8), transparent 100%),
+    radial-gradient(1.6px 1.6px at 92px 132px, rgba(255, 255, 255, 0.9), transparent 100%),
+    radial-gradient(1px 1px at 208px 96px, rgba(186, 214, 255, 0.7), transparent 100%),
+    radial-gradient(1.1px 1.1px at 52px 196px, rgba(255, 248, 226, 0.85), transparent 100%),
+    radial-gradient(1px 1px at 176px 214px, rgba(255, 255, 255, 0.65), transparent 100%),
+    radial-gradient(1.4px 1.4px at 238px 168px, rgba(206, 228, 255, 0.85), transparent 100%);
+  background-size: 268px 268px;
+  opacity: 0.9;
+}
+
+.space-backdrop::after {
+  background-image:
+    radial-gradient(2px 2px at 66px 74px, rgba(255, 255, 255, 0.8), transparent 100%),
+    radial-gradient(1.2px 1.2px at 286px 44px, rgba(0, 227, 253, 0.55), transparent 100%),
+    radial-gradient(1.5px 1.5px at 190px 268px, rgba(255, 255, 255, 0.6), transparent 100%),
+    radial-gradient(1.2px 1.2px at 372px 196px, rgba(255, 214, 170, 0.6), transparent 100%),
+    radial-gradient(1px 1px at 104px 340px, rgba(255, 255, 255, 0.5), transparent 100%);
+  background-size: 421px 421px;
+  opacity: 0.7;
+  animation: starTwinkle 14s ease-in-out infinite;
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-backdrop::after {
+    animation: none;
+  }
+}
+
+.map-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background: rgba(9, 14, 22, 0.86);
+  border: 1px solid var(--border-glass);
+  border-left: 2px solid var(--amber-warning);
+  border-radius: 4px;
+  padding: 3px 7px;
+  margin: 4px;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+}
+
+.hud-popup .maplibregl-popup-content {
+  background: rgba(13, 20, 29, 0.94);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+}
+
+.hud-popup .maplibregl-popup-tip {
+  display: none;
+}
+
+.maplibregl-ctrl-bottom-right {
+  bottom: 88px;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.map-wrap.dock-r-open .maplibregl-ctrl-bottom-right {
+  right: 408px;
+}
+
+.map-wrap.dock-r-closed .maplibregl-ctrl-bottom-right {
+  right: 20px;
+}
+
+.maplibregl-ctrl-group {
+  background: rgba(13, 20, 29, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.maplibregl-ctrl-group button:hover:not(:disabled) {
+  background: rgba(0, 227, 138, 0.12);
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.7);
+}
+
+.maplibregl-ctrl-attrib {
+  background: rgba(5, 10, 16, 0.72);
+  border-radius: 4px 4px 0 0;
+}
+
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib a {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.maplibregl-ctrl-attrib-button {
+  filter: invert(1) brightness(1.7);
+}
+
+@media (max-width: 1100px) {
+  .map-wrap.dock-r-open .maplibregl-ctrl-bottom-right,
+  .map-wrap.dock-r-closed .maplibregl-ctrl-bottom-right {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
    CINEMATIC 3D EARTH LOGIN EXPERIENCE
    ═══════════════════════════════════════════════ */
 
