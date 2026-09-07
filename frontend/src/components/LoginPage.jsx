@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import EarthBackground from './EarthBackground.jsx'
 
 export default function LoginPage({ onLoginSuccess }) {
@@ -9,6 +9,11 @@ export default function LoginPage({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [sceneLoaded, setSceneLoaded] = useState(false)
+
+  // Memoized callback so EarthBackground never re-initializes on keystrokes
+  const handleSceneLoaded = useCallback(() => {
+    setSceneLoaded(true)
+  }, [])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -42,8 +47,8 @@ export default function LoginPage({ onLoginSuccess }) {
 
   return (
     <div className={`login-page-container ${sceneLoaded ? 'loaded' : ''}`}>
-      {/* Cinematic 3D Earth WebGL Background */}
-      <EarthBackground onLoaded={() => setSceneLoaded(true)} />
+      {/* Cinematic 3D Earth WebGL Background - stable & isolated */}
+      <EarthBackground onLoaded={handleSceneLoaded} />
 
       {/* Subtle Right-Side Gradient for pristine card readability */}
       <div className="login-backdrop-vignette" />
