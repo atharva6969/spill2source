@@ -321,8 +321,8 @@ function EarthBackgroundComponent({ onLoaded }) {
     const animate = () => {
       animFrameId = requestAnimationFrame(animate)
 
-      // Rotation loop (increased by 30%)
-      earthGroup.rotation.y += 0.00013
+      // Rotation loop (increased by 50%)
+      earthGroup.rotation.y += 0.00020
 
       camera.position.x += (mouseX - camera.position.x) * 0.015
       camera.position.y += (-mouseY - camera.position.y) * 0.015
