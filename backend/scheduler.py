@@ -84,6 +84,8 @@ class System:
         # H7: crash recovery — reset scenes stuck in 'processing' from a prior crash
         self.store.exec(
             "UPDATE scenes SET status='catalogued' WHERE status='processing'")
+        # Pre-warm shore lookup grid in thread pool so initial attribution runs without cold-start delay
+        asyncio.create_task(asyncio.to_thread(lambda: __import__('backend.attribution.behavior', fromlist=['_shore_lookup'])._shore_lookup()))
         self._tasks = [
             asyncio.create_task(self._ais_loop(), name="ais"),
             asyncio.create_task(self._met_loop(), name="met"),
@@ -271,10 +273,9 @@ class System:
         dm = DriftModel(self.fields, self.settings)
         loop = asyncio.get_running_loop()
 
-        bw = await loop.run_in_executor(
-            None, lambda: dm.backward(poly, detect_ts))
-        fw = await loop.run_in_executor(
-            None, lambda: dm.forward(poly, detect_ts))
+        bw_task = loop.run_in_executor(None, lambda: dm.backward(poly, detect_ts))
+        fw_task = loop.run_in_executor(None, lambda: dm.forward(poly, detect_ts))
+        bw, fw = await asyncio.gather(bw_task, fw_task)
 
         # persist backward (origin estimate); convert local-metre paths to lon/lat
         frame = bw.pop("frame", None)

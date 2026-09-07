@@ -65,6 +65,14 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
     except Exception:
         pass
     slick_axis = slick.get("orientation_deg")
+    mmsis = list(cands.keys())
+    meta_map = {}
+    if mmsis:
+        placeholders = ",".join("?" for _ in mmsis)
+        rows = store.query(
+            f"SELECT mmsi,name,ship_type,dest,draught,imo,length,width "
+            f"FROM vessels WHERE mmsi IN ({placeholders})", tuple(mmsis))
+        meta_map = {r["mmsi"]: r for r in rows}
 
     results = []
     for mmsi, cd in cands.items():
@@ -75,7 +83,7 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
         f_cross, ev_cross = _crossing(fixes, slick_geom, origin_lon, origin_lat)
         f_speed, ev_speed = _speed_anomaly(fixes)
         f_gap, ev_gap = _ais_gap(fixes, release_ts)
-        meta = vessel_meta(store, mmsi)
+        meta = meta_map.get(mmsi, {"mmsi": mmsi, "name": None, "ship_type": None})
         f_type, ev_type = _type_prior(meta.get("ship_type"))
         f_align, ev_align = _course_align(fixes, slick_axis)
         beh = vessel_behavior_stats(store, mmsi)

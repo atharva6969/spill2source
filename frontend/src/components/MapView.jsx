@@ -1,33 +1,40 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 export const BASEMAPS = {
   dark: {
     name: 'Dark Maritime',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    url: 'https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
   },
   ocean: {
     name: 'Ocean Topo',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+    url: 'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; Esri, GEBCO, NOAA, Garmin',
   },
   satellite: {
     name: 'Satellite Imagery',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    url: 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: '&copy; Esri, Maxar, Earthstar Geographics',
   },
   osm: {
     name: 'OpenStreetMap',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; OpenStreetMap contributors',
   },
 }
 
 const C = {
-  abyss: '#0B1326', hull: '#171F33', line: '#334155',
-  foam: '#DAE2FD', dim: '#86948A',
-  amber: '#F59E0B', cyan: '#38BDF8', spill: '#EF4444', good: '#10B981',
+  abyss: '#0B1326',
+  hull: '#171F33',
+  line: '#334155',
+  foam: '#DAE2FD',
+  dim: '#86948A',
+  amber: '#F59E0B',
+  cyan: '#38BDF8',
+  spill: '#EF4444',
+  good: '#10B981',
 }
 
 function hydroCoord(lat, lon) {
@@ -70,6 +77,8 @@ export default function MapView({
 
   const onSelectVesselRef = useRef(onSelectVessel)
   onSelectVesselRef.current = onSelectVessel
+  const onSelectSlickRef = useRef(onSelectSlick)
+  onSelectSlickRef.current = onSelectSlick
 
   // --- Map Initialization ----------------------------------------------------
   useEffect(() => {
@@ -139,7 +148,7 @@ export default function MapView({
   // --- Vessel Track Draw ----------------------------------------------------
   const drawVesselTrack = (tr) => {
     const lg = layerRef.current
-    if (!lg) return
+    if (!lg || !mapRef.current) return
     if (mapRef.current._trackLine) {
       lg.removeLayer(mapRef.current._trackLine)
       if (mapRef.current._trackStart) lg.removeLayer(mapRef.current._trackStart)
@@ -177,7 +186,7 @@ export default function MapView({
         mapRef.current._trackAt = L.marker([best[1], best[0]], {
           icon: L.divIcon({
             className: '',
-            html: `<div class="at-release"><span class="at-dot"></span><span class="at-lbl mono">${safeLabel} \u00b7 at release ${hhmm}</span></div>`,
+            html: `<div class="at-release"><span class="at-dot"></span><span class="at-lbl mono">${safeLabel} &middot; at release ${hhmm}</span></div>`,
             iconSize: [0, 0],
             iconAnchor: [0, 0],
           }),
@@ -192,12 +201,13 @@ export default function MapView({
   // --- Spill Risk Heatmap Layer ----------------------------------------------
   useEffect(() => {
     const lg = layerRef.current
-    if (!lg) return
+    if (!lg || !mapRef.current) return
     if (mapRef.current._riskLayer) {
       lg.removeLayer(mapRef.current._riskLayer)
       mapRef.current._riskLayer = null
     }
     if (!riskOn || !riskData?.features) return
+
     const ps = riskData.features.map((f) => f.properties.p)
     const pMin = Math.min(...ps)
     const pMax = Math.max(...ps)
@@ -223,7 +233,7 @@ export default function MapView({
   // --- AIS Vessels Layer -----------------------------------------------------
   useEffect(() => {
     const lg = layerRef.current
-    if (!lg) return
+    if (!lg || !mapRef.current) return
     if (mapRef.current._aisLayer) lg.removeLayer(mapRef.current._aisLayer)
     if (!showVessels || !vessels || !vessels.features) return
 
@@ -242,7 +252,7 @@ export default function MapView({
         })
           .on('click', () => onSelectVesselRef.current(v.p.mmsi))
           .bindTooltip(
-            `${v.p.name || 'MMSI ' + v.p.mmsi} · ${Math.round(v.p.sog ?? 0)} kn`,
+            `${v.p.name || 'MMSI ' + v.p.mmsi} &middot; ${Math.round(v.p.sog ?? 0)} kn`,
             { direction: 'top', offset: [0, -6] }
           )
       )
@@ -254,13 +264,16 @@ export default function MapView({
   // --- Slicks Polygon Layer --------------------------------------------------
   useEffect(() => {
     const lg = layerRef.current
-    if (!lg) return
+    if (!lg || !mapRef.current) return
     if (mapRef.current._slickLayer) lg.removeLayer(mapRef.current._slickLayer)
     const items = []
+
     for (const s of slicks) {
-      if (!s.geometry?.geometry) continue
-      const rings = s.geometry.geometry.coordinates
-      const polys = s.geometry.geometry.type === 'MultiPolygon' ? rings : [rings]
+      if (!s.geometry) continue
+      const featureGeom = s.geometry.geometry || s.geometry
+      if (!featureGeom || !featureGeom.coordinates) continue
+      const rings = featureGeom.coordinates
+      const polys = featureGeom.type === 'MultiPolygon' ? rings : [rings]
       for (const poly of polys) {
         items.push({
           latlngs: poly[0].map((c) => [c[1], c[0]]),
@@ -277,8 +290,8 @@ export default function MapView({
           fillColor: C.spill,
           fillOpacity: 0.35,
         })
-          .on('click', () => onSelectSlick(it.props.id))
-          .bindTooltip(`Slick #${it.props.id} · ${it.props.area_km2} km²`, {
+          .on('click', () => onSelectSlickRef.current(it.props.id))
+          .bindTooltip(`Slick #${it.props.id} &middot; ${it.props.area_km2} km²`, {
             direction: 'top',
           })
       )
@@ -290,7 +303,7 @@ export default function MapView({
   // --- Selected Slick Analysis Overlay ---------------------------------------
   useEffect(() => {
     const lg = layerRef.current
-    if (!lg) return
+    if (!lg || !mapRef.current) return
     if (mapRef.current._analysisLayer) lg.removeLayer(mapRef.current._analysisLayer)
     mapRef.current._analysisLayer = null
     if (!detail) return
@@ -343,22 +356,27 @@ export default function MapView({
       }
     }
 
-    if (detail.geometry?.geometry?.coordinates) {
-      const ring = detail.geometry.geometry.coordinates[0]
-      const ll = ring.map((c) => [c[1], c[0]])
-      L.polygon(ll, {
-        color: C.spill,
-        weight: 2.5,
-        opacity: 1,
-        fillColor: C.spill,
-        fillOpacity: 0.45,
-      })
-        .bindTooltip(`Slick #${detail.id} Footprint (${detail.area_km2} km²)`, {
-          permanent: false,
-          direction: 'top',
-          className: 'map-label',
-        })
-        .addTo(grp)
+    if (detail.geometry) {
+      const featureGeom = detail.geometry.geometry || detail.geometry
+      if (featureGeom && featureGeom.coordinates) {
+        const rings = featureGeom.coordinates
+        const polys = featureGeom.type === 'MultiPolygon' ? rings : [rings]
+        for (const poly of polys) {
+          L.polygon(poly[0].map((c) => [c[1], c[0]]), {
+            color: C.spill,
+            weight: 2.5,
+            opacity: 1,
+            fillColor: C.spill,
+            fillOpacity: 0.45,
+          })
+            .bindTooltip(`Slick #${detail.id} Footprint (${detail.area_km2} km²)`, {
+              permanent: false,
+              direction: 'top',
+              className: 'map-label',
+            })
+            .addTo(grp)
+        }
+      }
     }
 
     if (bw && bw.origin_lon != null) {
@@ -369,7 +387,7 @@ export default function MapView({
         iconAnchor: [22, 22],
       })
       L.marker([bw.origin_lat, bw.origin_lon], { icon })
-        .bindTooltip(`Estimated Release Origin (±${bw.origin_sigma_km.toFixed(1)} km)`, {
+        .bindTooltip(`Estimated Release Origin (&plusmn;${bw.origin_sigma_km.toFixed(1)} km)`, {
           permanent: false,
           direction: 'top',
           offset: [0, -22],
@@ -385,8 +403,12 @@ export default function MapView({
     if (bw?.path?.centroid_path?.length) {
       bw.path.centroid_path.forEach((p) => b.push([p[1], p[0]]))
     }
-    if (detail.geometry?.geometry?.coordinates) {
-      detail.geometry.geometry.coordinates[0].forEach((c) => b.push([c[1], c[0]]))
+    if (detail.geometry) {
+      const featureGeom = detail.geometry.geometry || detail.geometry
+      if (featureGeom && featureGeom.coordinates) {
+        const ring = featureGeom.coordinates[0]
+        if (ring) ring.forEach((c) => b.push([c[1], c[0]]))
+      }
     }
     if (fw?.cone?.length) {
       fw.cone.filter((k) => k.lon != null).slice(-1).forEach((c) => b.push([c.lat, c.lon]))
@@ -400,7 +422,7 @@ export default function MapView({
     <div className="map-wrap">
       <div ref={boxRef} className="map" />
 
-      {/* Floating Chart Legend (smoothly offsets when left intelligence dock opens) */}
+      {/* Floating Chart Legend */}
       <div className={`map-legend ${leftPanelOpen ? 'dock-open' : 'dock-closed'}`}>
         <div className="lg-title">GIS LAYER KEY</div>
         <div><span className="sw slick" /> Detected Slick (Sentinel-1 SAR)</div>

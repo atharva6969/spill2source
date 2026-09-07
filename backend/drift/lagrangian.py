@@ -62,30 +62,22 @@ class DriftModel:
 
     # ---- dynamics ------------------------------------------------------------
     def _velocity(self, xy: np.ndarray, t: float, frame: LocalFrame) -> np.ndarray:
-        """Deterministic + diffusive velocity [m/s] for all particles."""
-        n = len(xy)
-        det = np.zeros((n, 2))
-        cu = wu = 0.0
-        for i, (x, y) in enumerate(xy):
-            lon, lat = frame.to_ll(x, y)
-            smp = self.f.sample(lat, lon, t)
-            cu_, cv_ = smp["current"]
-            wu_, wv_ = smp["wind"]
-            cu += cu_; wu += wu_
-            det[i, 0] = cu_
-            det[i, 1] = cv_
-            # windage: fraction of wind speed, deflected right (NH Ekman/leeway)
-            th = math.radians(self.s.windage_deflection_deg)
-            uw = self.s.windage_factor * wu_
-            vw = self.s.windage_factor * wv_
-            det[i, 0] += uw * math.cos(th) + vw * math.sin(th)
-            det[i, 1] += -uw * math.sin(th) + vw * math.cos(th)
-            # Stokes drift approximation: aligned with wind
-            det[i, 0] += self.s.stokes_factor * wu_
-            det[i, 1] += self.s.stokes_factor * wv_
-        # NOTE: stochastic diffusion is applied to positions in _integrate
-        # (Euler-Maruyama), not to velocities.
-        _ = cu, wu
+        """Deterministic + diffusive velocity [m/s] for all particles (vectorized)."""
+        lons = frame.lon0 + xy[:, 0] / frame.mx
+        lats = frame.lat0 + xy[:, 1] / frame.my
+
+        cu, cv, wu, wv = self.f.sample_batch(lats, lons, t)
+
+        det = np.empty_like(xy)
+        th = math.radians(self.s.windage_deflection_deg)
+        cos_th = math.cos(th)
+        sin_th = math.sin(th)
+
+        uw = self.s.windage_factor * wu
+        vw = self.s.windage_factor * wv
+
+        det[:, 0] = cu + (uw * cos_th + vw * sin_th) + (self.s.stokes_factor * wu)
+        det[:, 1] = cv + (-uw * sin_th + vw * cos_th) + (self.s.stokes_factor * wv)
         return det
 
     def _integrate(self, xy0: np.ndarray, t0: float, hours: float,
@@ -106,11 +98,24 @@ class DriftModel:
         keep_mask = None
         step = 0
         while step < total:
+            prev_xy = xy.copy()
             k1 = self._velocity(xy, t, frame)
             mid = xy + 0.5 * dt * k1
             k2 = self._velocity(mid, t + 0.5 * dt, frame)
             xy = xy + dt * k2
             xy = xy + np.random.normal(0.0, pos_sig, size=xy.shape)
+
+            # Prevent particles from drifting across land
+            try:
+                from ..attribution.behavior import _shore_km
+                lons = frame.lon0 + xy[:, 0] / frame.mx
+                lats = frame.lat0 + xy[:, 1] / frame.my
+                on_land = _shore_km(lons, lats) < 0.1
+                if on_land.any():
+                    xy[on_land] = prev_xy[on_land]
+            except Exception:
+                pass
+
             t += dt
             step += 1
             if out_every and step % out_every == 0:

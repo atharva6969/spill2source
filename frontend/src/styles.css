@@ -2293,3 +2293,92 @@ button:focus-visible {
     display: none;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   MAPLIBRE GL 3D GLOBE STYLING
+   ═══════════════════════════════════════════════ */
+
+.maplibregl-canvas {
+  outline: none;
+}
+
+.maplibregl-ctrl-group {
+  background: rgba(10, 18, 36, 0.85) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+  margin-top: 80px !important;
+  margin-right: 14px !important;
+}
+
+.maplibregl-ctrl-group button {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+
+.maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.5) !important;
+}
+
+.maplibregl-popup-content {
+  background: rgba(10, 18, 36, 0.92) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--glass-shadow-lg), 0 0 20px rgba(0, 0, 0, 0.5) !important;
+  padding: 6px 12px !important;
+  color: var(--text-primary) !important;
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: rgba(10, 18, 36, 0.92) !important;
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: rgba(10, 18, 36, 0.92) !important;
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: rgba(10, 18, 36, 0.92) !important;
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: rgba(10, 18, 36, 0.92) !important;
+}
+
+.map-popup {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--foam);
+  white-space: nowrap;
+}
+
+.at-release {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(10, 18, 36, 0.88);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+.at-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #F59E0B;
+  box-shadow: 0 0 6px #F59E0B;
+}
+
+.at-lbl {
+  font-size: 10px;
+  color: var(--text-primary);
+}
+

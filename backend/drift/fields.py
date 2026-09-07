@@ -7,7 +7,6 @@ spatial + linear temporal interpolation.
 from __future__ import annotations
 
 import math
-
 import numpy as np
 
 
@@ -67,6 +66,44 @@ class FieldSet:
             "wind": (0.0 if nan(wu) else wu, 0.0 if nan(wv) else wv),
             "current": (0.0 if nan(cu) else cu, 0.0 if nan(cv) else cv),
         }
+
+    def sample_batch(self, lats: np.ndarray, lons: np.ndarray, t: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Vectorized sampling for arrays of lats and lons at epoch time t.
+
+        Returns (cur_u, cur_v, wind_u, wind_v) as 1D arrays of length N.
+        """
+        k = np.searchsorted(self.times, t) - 1
+        if k < 0:
+            it, ft = 0, 0.0
+        elif k >= len(self.times) - 1:
+            it, ft = len(self.times) - 2, 1.0
+        else:
+            it = int(k)
+            ft = min(max((t - self.times[it]) / (self.times[it + 1] - self.times[it]), 0.0), 1.0)
+
+        ix = np.searchsorted(self.lons, lons) - 1
+        ix = np.clip(ix, 0, len(self.lons) - 2)
+        fx = np.clip((lons - self.lons[ix]) / (self.lons[ix + 1] - self.lons[ix]), 0.0, 1.0)
+
+        iy = np.searchsorted(self.lats, lats) - 1
+        iy = np.clip(iy, 0, len(self.lats) - 2)
+        fy = np.clip((lats - self.lats[iy]) / (self.lats[iy + 1] - self.lats[iy]), 0.0, 1.0)
+
+        def _bilinear_vec(field: np.ndarray) -> np.ndarray:
+            c00 = field[iy, ix, it] * (1.0 - fx) + field[iy, ix + 1, it] * fx
+            c10 = field[iy + 1, ix, it] * (1.0 - fx) + field[iy + 1, ix + 1, it] * fx
+            c0 = c00 * (1.0 - fy) + c10 * fy
+            c01 = field[iy, ix, it + 1] * (1.0 - fx) + field[iy, ix + 1, it + 1] * fx
+            c11 = field[iy + 1, ix, it + 1] * (1.0 - fx) + field[iy + 1, ix + 1, it + 1] * fx
+            c1 = c01 * (1.0 - fy) + c11 * fy
+            res = c0 * (1.0 - ft) + c1 * ft
+            return np.nan_to_num(res, nan=0.0)
+
+        wu = _bilinear_vec(self.wind_u)
+        wv = _bilinear_vec(self.wind_v)
+        cu = _bilinear_vec(self.cur_u)
+        cv = _bilinear_vec(self.cur_v)
+        return cu, cv, wu, wv
 
     def covers(self, t0: float, t1: float) -> bool:
         return self.times[0] <= t0 <= t1 <= self.times[-1]

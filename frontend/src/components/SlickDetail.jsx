@@ -74,7 +74,7 @@ export default function SlickDetail({
   const suspects = detail.suspects || []
 
   const locateAtRelease = (s) => {
-    const rel = bw?.release_time
+    const rel = bw?.release_time || bw?.release_ts
     if (!rel) return
     const qs = `from_ts=${rel - 3 * 3600}&to_ts=${rel + 3 * 3600}`
     getJSON(`/api/vessels/${s.mmsi}/track?${qs}`)
@@ -88,6 +88,11 @@ export default function SlickDetail({
       })
       .catch(() => {})
   }
+
+  const releaseTs = bw?.release_time || bw?.release_ts
+  const ageHours = (detail.age_estimate_h != null && detail.age_estimate_h >= 0)
+    ? detail.age_estimate_h
+    : (bw?.age_h != null ? bw.age_h : null)
 
   return (
     <aside className="panel right">
@@ -116,7 +121,7 @@ export default function SlickDetail({
         <div className="prop-card">
           <span className="prop-lbl">ESTIMATED SLICK AGE</span>
           <b className="prop-val mono">
-            {detail.age_estimate_h != null ? `~${Number(detail.age_estimate_h).toFixed(1)} h` : '—'}
+            {ageHours != null ? `~${Number(ageHours).toFixed(1)} h` : '—'}
           </b>
         </div>
         <div className="prop-card">
@@ -138,7 +143,7 @@ export default function SlickDetail({
         </div>
         {bw ? (
           <div className="origin-details">
-            <div><b>RELEASE TIME:</b> {utc(bw.release_time)}</div>
+            <div><b>RELEASE TIME:</b> {utc(releaseTs)}</div>
             <div><b>COORDINATES:</b> {bw.origin_lat?.toFixed(4)}°N {bw.origin_lon?.toFixed(4)}°E</div>
           </div>
         ) : (
