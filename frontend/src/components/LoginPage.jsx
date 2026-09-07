@@ -50,7 +50,7 @@ export default function LoginPage({ onLoginSuccess }) {
       {/* 3D Earth WebGL Background - Small & Positioned Low (30-40% Width) */}
       <EarthBackground onLoaded={handleSceneLoaded} />
 
-      {/* Top Header Navigation (Minimalist) */}
+      {/* Top Header Navigation (Editorial Minimalist) */}
       <header className="ref-top-header">
         <div className="ref-brand-logo">
           <svg className="ref-star-icon" width="20" height="20" viewBox="0 0 32 32" fill="none">
@@ -60,6 +60,17 @@ export default function LoginPage({ onLoginSuccess }) {
         </div>
 
         <div className="ref-header-actions">
+          <div className="ref-telemetry-pill-group">
+            <div className="telemetry-item">
+              <span className="telemetry-val">98.4%</span>
+              <span className="telemetry-lbl">ACCURACY</span>
+            </div>
+            <div className="telemetry-divider" />
+            <div className="telemetry-item">
+              <span className="telemetry-val">24/7</span>
+              <span className="telemetry-lbl">SAR RADAR</span>
+            </div>
+          </div>
           <div className="telemetry-online-pill">
             <span className="telemetry-dot" />
             <span>SYSTEM ONLINE</span>
@@ -78,30 +89,30 @@ export default function LoginPage({ onLoginSuccess }) {
         </p>
       </div>
 
-      {/* Subtle Scientific Annotations (15% Opacity Orbit Arc) */}
+      {/* Subtle Scientific Annotations (Concentric Orbit Arc hugging Earth Rim) */}
       <div className="ref-orbit-ring-container" aria-hidden="true">
-        <svg className="ref-orbit-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax meet">
+        <svg className="ref-orbit-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMax meet">
           <defs>
             <path
               id="subtleOrbitArc"
-              d="M 200 520 A 320 320 0 0 1 800 520"
+              d="M 160 920 A 980 980 0 0 1 1760 920"
               fill="none"
             />
           </defs>
-          {/* Subtle Concentric Scientific Measurement Arc */}
+          {/* Subtle Concentric Measurement Orbit Arc */}
           <circle
-            cx="500"
-            cy="520"
-            r="320"
+            cx="960"
+            cy="1470"
+            r="970"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.12)"
+            stroke="rgba(6, 201, 232, 0.22)"
             strokeWidth="1"
-            strokeDasharray="3 5"
+            strokeDasharray="4 6"
           />
-          {/* Subtle Scientific Coordinates (15% Opacity) */}
+          {/* Scientific Orbital Telemetry */}
           <text className="ref-orbit-text">
             <textPath href="#subtleOrbitArc" startOffset="50%" textAnchor="middle">
-              01.40 // SAR RADAR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LAT 54° 12' N &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ATTRIBUTION NET &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S1 OBSERVATION NODE
+              01.40 // SAR RADAR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LAT 54° 12' N &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ATTRIBUTION NET &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S1 OBSERVATION NODE
             </textPath>
           </text>
         </svg>

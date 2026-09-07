@@ -3185,14 +3185,32 @@ button:focus-visible {
   font-family: var(--font-sans);
 }
 
+/* Fixed Fullscreen 3D Canvas Background */
+.space-3d-canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.space-3d-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
 /* Minimal Top Header Bar */
 .ref-top-header {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 80px;
-  padding: 0 52px;
+  height: 72px;
+  padding: 0 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3212,15 +3230,53 @@ button:focus-visible {
 
 .ref-brand-name {
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   color: #ffffff;
 }
 
 .ref-header-actions {
   display: flex;
   align-items: center;
+  gap: 20px;
+}
+
+.ref-telemetry-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 6px 16px;
+  border-radius: 20px;
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.telemetry-val {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.telemetry-lbl {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(203, 213, 225, 0.5);
+}
+
+.telemetry-divider {
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .telemetry-online-pill {
@@ -3242,70 +3298,30 @@ button:focus-visible {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
 }
 
-.ref-icon-btn:hover {
-  background: rgba(6, 201, 232, 0.15);
-  border-color: rgba(6, 201, 232, 0.35);
-  color: #06c9e8;
-}
-
-/* Telemetry Metrics Header (Top Right / Top Center) */
-.ref-telemetry-bar {
-  position: absolute;
-  top: 96px;
-  right: 6vw;
-  display: flex;
-  align-items: center;
-  gap: 48px;
-  z-index: 15;
-}
-
-.ref-telemetry-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.ref-telemetry-val {
-  font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #ffffff;
-  line-height: 1.1;
-}
-
-.ref-telemetry-lbl {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(203, 213, 225, 0.5);
-  margin-top: 4px;
-}
-
-/* Left Hero Title Block (Reference Video Style) */
+/* Left Hero Title Block (Swiss / Editorial Style) */
 .ref-hero-title-block {
   position: absolute;
-  top: 130px;
-  left: 6vw;
-  z-index: 15;
-  max-width: 440px;
+  top: 110px;
+  left: 48px;
+  z-index: 20;
+  max-width: 460px;
   pointer-events: none;
 }
 
 .ref-hero-title {
-  font-family: var(--font-display);
-  font-size: 48px;
+  font-family: var(--font-sans);
+  font-size: 42px;
   font-weight: 800;
   line-height: 1.08;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: #ffffff;
   display: flex;
   flex-direction: column;
-  margin: 0 0 16px 0;
+  margin: 0 0 14px 0;
 }
 
 .ref-title-accent {
@@ -3315,21 +3331,21 @@ button:focus-visible {
 }
 
 .ref-hero-subtitle {
-  font-size: 15px;
-  color: rgba(203, 213, 225, 0.65);
+  font-size: 14px;
+  color: rgba(203, 213, 225, 0.60);
   line-height: 1.5;
   margin: 0;
+  font-weight: 400;
 }
 
-/* Curved Orbital Text Ring over Earth Rim */
+/* Concentric Orbital Text Arc hugging the bottom-center Earth */
 .ref-orbit-ring-container {
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
   width: 100vw;
-  height: 52vh;
-  z-index: 8;
+  height: 100vh;
+  z-index: 10;
   pointer-events: none;
   overflow: hidden;
 }
@@ -3341,46 +3357,204 @@ button:focus-visible {
 
 .ref-orbit-text {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.28em;
-  fill: rgba(6, 201, 232, 0.75);
+  letter-spacing: 0.24em;
+  fill: rgba(6, 201, 232, 0.65);
   text-transform: uppercase;
 }
 
-/* Position adjustment for login card anchor to give room for telemetry top right */
+/* Minimal Right-Aligned Login Card */
 .login-card-anchor {
   position: absolute;
-  top: 56%;
-  right: 6vw;
+  top: 50%;
+  right: 48px;
   transform: translateY(-50%);
-  z-index: 10;
-  width: 460px;
+  z-index: 25;
+  width: 380px;
   max-width: calc(100vw - 40px);
+}
+
+.minimal-editor-card {
+  background: rgba(10, 16, 26, 0.80);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 32px 28px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.card-header {
+  margin-bottom: 22px;
+}
+
+.card-title {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: rgba(203, 213, 225, 0.55);
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(203, 213, 225, 0.7);
+  letter-spacing: 0.02em;
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inline-link {
+  font-size: 11.5px;
+  color: rgba(6, 201, 232, 0.8);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.inline-link:hover {
+  color: #06c9e8;
+  text-decoration: underline;
+}
+
+.input-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.form-field input,
+.input-password-wrapper input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  background: rgba(15, 23, 36, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.input-password-wrapper input {
+  padding-right: 42px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(203, 213, 225, 0.45);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.password-toggle-btn:hover {
+  color: #06c9e8;
+}
+
+.options-row {
+  margin-top: -2px;
+}
+
+.checkbox-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-control input {
+  display: none;
+}
+
+.checkbox-box {
+  width: 15px;
+  height: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(15, 23, 36, 0.7);
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.checkbox-control input:checked ~ .checkbox-box {
+  background: #06c9e8;
+  border-color: #06c9e8;
+}
+
+.checkbox-control input:checked ~ .checkbox-box::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #040914;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-text {
+  font-size: 12.5px;
+  color: rgba(203, 213, 225, 0.65);
 }
 
 /* Primary Action Button */
 .primary-submit-btn {
   width: 100%;
-  height: 50px;
-  margin-top: 8px;
+  height: 48px;
+  margin-top: 6px;
   background: linear-gradient(135deg, #06c9e8 0%, #0284c7 50%, #1d4ed8 100%) !important;
   border: none !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: #ffffff !important;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 22px rgba(6, 201, 232, 0.28);
+  box-shadow: 0 4px 18px rgba(6, 201, 232, 0.25);
 }
 
 .primary-submit-btn:hover:not(:disabled) {
   filter: brightness(1.10);
   transform: translateY(-1px);
-  box-shadow: 0 6px 28px rgba(6, 201, 232, 0.42);
+  box-shadow: 0 6px 24px rgba(6, 201, 232, 0.38);
 }
 
 .btn-content {
@@ -3391,10 +3565,10 @@ button:focus-visible {
 }
 
 .card-footnote {
-  margin-top: 16px;
+  margin-top: 14px;
   text-align: center;
-  font-size: 12.5px;
-  color: rgba(203, 213, 225, 0.55);
+  font-size: 12px;
+  color: rgba(203, 213, 225, 0.5);
 }
 
 .demo-fill-btn {
@@ -3402,30 +3576,24 @@ button:focus-visible {
   border: none !important;
   padding: 0;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   color: #06c9e8 !important;
   cursor: pointer;
   text-decoration: underline;
-  transition: color 0.18s ease;
+  transition: color 0.15s ease;
 }
 
 .demo-fill-btn:hover {
   color: #5eead4 !important;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .ref-hero-title-block {
     display: none;
   }
-
-  .ref-telemetry-bar {
-    top: 80px;
-    right: 50%;
-    transform: translateX(50%);
-    gap: 32px;
-  }
-
-  .ref-telemetry-val {
-    font-size: 24px;
+  .login-card-anchor {
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
   }
 }
