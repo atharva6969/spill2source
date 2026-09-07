@@ -5,8 +5,18 @@ import MapView, { BASEMAPS } from './components/MapView.jsx'
 import LeftPanel from './components/LeftPanel.jsx'
 import SlickDetail from './components/SlickDetail.jsx'
 import VesselCard from './components/VesselCard.jsx'
+import LoginPage from './components/LoginPage.jsx'
 
 export default function App() {
+  const [userSession, setUserSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('spill2source_session')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
   const [status, setStatus] = useState(null)
   const [vessels, setVessels] = useState(null)
   const [scenes, setScenes] = useState([])
@@ -196,6 +206,22 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('reset-map-view'))
   }, [])
 
+  const handleLogout = useCallback(() => {
+    setUserSession(null)
+    localStorage.removeItem('spill2source_session')
+  }, [])
+
+  if (!userSession) {
+    return (
+      <LoginPage
+        onLoginSuccess={(session) => {
+          setUserSession(session)
+          localStorage.setItem('spill2source_session', JSON.stringify(session))
+        }}
+      />
+    )
+  }
+
   return (
     <div className="app-hud">
       {/* 1. Full Screen Map Base Layer */}
@@ -228,6 +254,8 @@ export default function App() {
         onSelectBasemap={setBasemapKey}
         basemaps={BASEMAPS}
         onResetView={resetAOI}
+        userSession={userSession}
+        onLogout={handleLogout}
       />
 
       {/* 3. Floating Left Intelligence Dock */}
