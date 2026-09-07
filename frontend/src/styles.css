@@ -2628,10 +2628,10 @@ button:focus-visible {
 .login-card-anchor {
   position: absolute;
   top: 50%;
-  right: 7vw;
+  right: 6vw;
   transform: translateY(-50%);
   z-index: 10;
-  width: 390px;
+  width: 460px;
   max-width: calc(100vw - 40px);
 }
 
@@ -2639,17 +2639,17 @@ button:focus-visible {
 .cinematic-glass-card {
   position: relative;
   overflow: hidden;
-  width: 390px;
+  width: 460px;
   max-width: 90vw;
-  background: linear-gradient(150deg, rgba(14, 23, 38, 0.78) 0%, rgba(6, 12, 22, 0.86) 100%);
+  background: linear-gradient(150deg, rgba(14, 23, 38, 0.82) 0%, rgba(6, 12, 22, 0.90) 100%);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 20px;
-  padding: 34px 30px 26px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 22px;
+  padding: 42px 38px 32px;
   box-shadow: 
     0 30px 70px -12px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
   animation: cardFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -2659,7 +2659,7 @@ button:focus-visible {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(6, 201, 232, 0.5) 30%, rgba(255, 255, 255, 0.4) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(6, 201, 232, 0.6) 30%, rgba(255, 255, 255, 0.5) 70%, transparent 100%);
 }
 
 @keyframes cardFadeIn {
@@ -2682,87 +2682,87 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .brand-icon-wrapper {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   background: rgba(6, 201, 232, 0.10);
   border: 1px solid rgba(6, 201, 232, 0.25);
-  box-shadow: 0 0 16px rgba(6, 201, 232, 0.15);
+  box-shadow: 0 0 16px rgba(6, 201, 232, 0.18);
 }
 
 .brand-badge {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.12em;
   color: #06c9e8;
   background: rgba(6, 201, 232, 0.08);
-  border: 1px solid rgba(6, 201, 232, 0.20);
-  padding: 3px 9px;
+  border: 1px solid rgba(6, 201, 232, 0.22);
+  padding: 4px 11px;
   border-radius: 20px;
 }
 
 .brand-title {
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: #ffffff;
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
 }
 
 .brand-subtitle {
   margin: 0;
-  font-size: 12.5px;
-  color: rgba(203, 213, 225, 0.60);
-  line-height: 1.4;
+  font-size: 13.5px;
+  color: rgba(203, 213, 225, 0.65);
+  line-height: 1.45;
 }
 
 .card-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.08) 80%, transparent);
-  margin: 18px 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09) 20%, rgba(255, 255, 255, 0.09) 80%, transparent);
+  margin: 22px 0 20px 0;
 }
 
 /* Validation Alert */
 .auth-alert {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 9px;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: 10px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
-  font-size: 12.5px;
-  margin-bottom: 16px;
+  font-size: 13px;
+  margin-bottom: 18px;
 }
 
 /* Form Styles */
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 18px;
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .form-field label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  color: rgba(203, 213, 225, 0.65);
+  color: rgba(203, 213, 225, 0.72);
 }
 
 .field-header {
@@ -2772,7 +2772,7 @@ button:focus-visible {
 }
 
 .inline-link {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #06c9e8;
   text-decoration: none;
   transition: color 0.18s ease;
@@ -2791,28 +2791,28 @@ button:focus-visible {
 
 .field-icon {
   position: absolute;
-  left: 14px;
-  color: rgba(203, 213, 225, 0.40);
+  left: 15px;
+  color: rgba(203, 213, 225, 0.42);
   pointer-events: none;
   transition: color 0.18s ease;
 }
 
 .input-icon-wrapper input {
   width: 100%;
-  height: 46px;
-  background: rgba(10, 18, 30, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 0 14px 0 42px;
+  height: 52px;
+  background: rgba(10, 18, 30, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  padding: 0 16px 0 46px;
   font-family: var(--font-sans);
-  font-size: 13.5px;
+  font-size: 14px;
   color: #ffffff;
   outline: none;
   transition: all 0.2s ease;
 }
 
 .input-icon-wrapper input::placeholder {
-  color: rgba(203, 213, 225, 0.32);
+  color: rgba(203, 213, 225, 0.35);
 }
 
 .input-icon-wrapper:focus-within .field-icon {
@@ -2820,17 +2820,17 @@ button:focus-visible {
 }
 
 .input-icon-wrapper input:focus {
-  background: rgba(14, 24, 40, 0.85);
-  border-color: rgba(6, 201, 232, 0.6);
-  box-shadow: 0 0 16px rgba(6, 201, 232, 0.12);
+  background: rgba(14, 24, 40, 0.90);
+  border-color: rgba(6, 201, 232, 0.65);
+  box-shadow: 0 0 18px rgba(6, 201, 232, 0.15);
 }
 
 .password-toggle-btn {
   position: absolute;
-  right: 10px;
+  right: 12px;
   background: none;
   border: none;
-  color: rgba(203, 213, 225, 0.40);
+  color: rgba(203, 213, 225, 0.42);
   cursor: pointer;
   padding: 6px;
   display: flex;
@@ -2851,7 +2851,7 @@ button:focus-visible {
 .checkbox-control {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   cursor: pointer;
   user-select: none;
 }
@@ -2861,11 +2861,11 @@ button:focus-visible {
 }
 
 .checkbox-box {
-  width: 15px;
-  height: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 4px;
-  background: rgba(10, 18, 30, 0.6);
+  background: rgba(10, 18, 30, 0.65);
   position: relative;
   transition: all 0.18s ease;
 }
@@ -2882,46 +2882,46 @@ button:focus-visible {
 .checkbox-control input:checked ~ .checkbox-box::after {
   content: '';
   position: absolute;
-  left: 4.5px;
-  top: 1.5px;
+  left: 5px;
+  top: 2px;
   width: 4px;
-  height: 7.5px;
+  height: 8px;
   border: solid #040914;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .checkbox-text {
-  font-size: 12.5px;
-  color: rgba(203, 213, 225, 0.65);
+  font-size: 13px;
+  color: rgba(203, 213, 225, 0.70);
 }
 
 /* Primary Action Button */
 .primary-submit-btn {
   width: 100%;
-  height: 48px;
+  height: 52px;
   margin-top: 6px;
   background: linear-gradient(135deg, #06c9e8 0%, #0284c7 50%, #1d4ed8 100%);
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 
-    0 4px 20px rgba(6, 201, 232, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 4px 22px rgba(6, 201, 232, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .primary-submit-btn:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
   box-shadow: 
-    0 6px 24px rgba(6, 201, 232, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 6px 28px rgba(6, 201, 232, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .primary-submit-btn:active:not(:disabled) {
