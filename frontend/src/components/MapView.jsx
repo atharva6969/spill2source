@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+// In MapLibre GL JS v6+, Vite requires explicit worker URL configuration
+if (maplibregl.setWorkerUrl) {
+  maplibregl.setWorkerUrl(workerUrl)
+}
 
 // Raster basemaps. MapLibre has no {s} subdomain token, so OSM is expanded into
 // explicit per-subdomain URLs. maxzoom is each service's real limit — MapLibre
@@ -323,15 +329,19 @@ export default function MapView({
     }
     setSrc('s-risk', fc(risk))
 
-    setSrc('s-slicks', fc(
-      (d.slicks || [])
-        .filter((s) => s.geometry?.geometry)
-        .map((s) => ({
+    const slickFeatures = (d.slicks || [])
+      .map((s) => {
+        const geom = s.geometry?.geometry || s.geometry
+        if (!geom || !geom.coordinates) return null
+        return {
           type: 'Feature',
-          geometry: s.geometry.geometry,
+          geometry: geom,
           properties: { id: s.id, area_km2: s.area_km2 },
-        }))
-    ))
+        }
+      })
+      .filter(Boolean)
+
+    setSrc('s-slicks', fc(slickFeatures))
 
     // /api/vessels/live is already a GeoJSON FeatureCollection of points.
     setSrc('s-vessels', fc(
@@ -488,6 +498,7 @@ export default function MapView({
       canvasContextAttributes: { antialias: true },
     })
     mapRef.current = map
+    window.__map = map
 
     // Zoom, compass (drag to rotate) and a pitch indicator for the 3D camera.
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right')
