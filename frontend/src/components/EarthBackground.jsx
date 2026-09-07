@@ -321,8 +321,8 @@ function EarthBackgroundComponent({ onLoaded }) {
     const animate = () => {
       animFrameId = requestAnimationFrame(animate)
 
-      // Extremely slow rotation
-      earthGroup.rotation.y += 0.00010
+      // Rotation loop (increased by 30%)
+      earthGroup.rotation.y += 0.00013
 
       camera.position.x += (mouseX - camera.position.x) * 0.015
       camera.position.y += (-mouseY - camera.position.y) * 0.015
