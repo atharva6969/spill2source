@@ -64,18 +64,6 @@ export default function LoginPage({ onLoginSuccess }) {
             <span className="telemetry-dot" />
             <span>SYSTEM ONLINE</span>
           </div>
-          <button className="ref-icon-btn" aria-label="Search">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
-          <button className="ref-icon-btn" aria-label="Menu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="8" x2="21" y2="8" />
-              <line x1="3" y1="16" x2="21" y2="16" />
-            </svg>
-          </button>
         </div>
       </header>
 
