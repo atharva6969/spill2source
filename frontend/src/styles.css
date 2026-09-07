@@ -2624,17 +2624,15 @@ button:focus-visible {
   box-shadow: 0 0 6px rgba(6, 201, 232, 0.6);
 }
 
-/* Login Card Anchor (Desktop: ~60% from left, vertically centered) */
+/* Login Card Anchor (Right sector with breathing room from Earth limb & viewport edges) */
 .login-card-anchor {
   position: absolute;
-  top: 51%;
-  left: 60%;
-  transform: translate(-50%, -50%);
+  top: 50%;
+  right: 7vw;
+  transform: translateY(-50%);
   z-index: 10;
-  width: 100%;
-  max-width: 390px;
-  display: flex;
-  justify-content: center;
+  width: 390px;
+  max-width: calc(100vw - 40px);
 }
 
 /* Cinematic Floating Glass Card */

@@ -183,7 +183,7 @@ function EarthBackgroundComponent({ onLoaded }) {
     // Earth group positioned lower-left so Earth occupies ~35-45% of composition
     // Sweeping diagonal horizon across lower-left / lower-middle
     const earthGroup = new THREE.Group()
-    earthGroup.position.set(-1.45, -2.55, -0.15)
+    earthGroup.position.set(-1.65, -2.55, -0.15)
     earthGroup.rotation.x = -0.18  // Angled to showcase curved horizon line
     earthGroup.rotation.z = -0.28  // Cinematic diagonal horizon slope
     earthGroup.rotation.y = 4.65   // Positions Western Europe / Mediterranean facing camera
@@ -522,7 +522,7 @@ function EarthBackgroundComponent({ onLoaded }) {
         earthGroup.position.set(-0.95, -2.85, -0.20)
       } else {
         camera.position.set(0, 0.20, 5.0)
-        earthGroup.position.set(-1.45, -2.55, -0.15)
+        earthGroup.position.set(-1.65, -2.55, -0.15)
       }
     }
 
