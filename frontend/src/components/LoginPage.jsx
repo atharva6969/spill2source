@@ -47,19 +47,93 @@ export default function LoginPage({ onLoginSuccess }) {
 
   return (
     <div className={`login-page-container ${sceneLoaded ? 'loaded' : ''}`}>
-      {/* Cinematic 3D Earth WebGL Background - stable & isolated */}
+      {/* 3D Earth WebGL Background */}
       <EarthBackground onLoaded={handleSceneLoaded} />
 
-      {/* Subtle Right-Side Gradient for pristine card readability */}
-      <div className="login-backdrop-vignette" />
+      {/* Top Header Bar (Reference Video Style) */}
+      <header className="ref-top-header">
+        <div className="ref-brand-logo">
+          <svg className="ref-star-icon" width="22" height="22" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L19.5 12.5L30 16L19.5 19.5L16 30L12.5 19.5L2 16L12.5 12.5L16 2Z" fill="#06c9e8" />
+          </svg>
+          <span className="ref-brand-name">SPILL2SOURCE</span>
+        </div>
 
-      {/* Minimal Discreet Telemetry Indicator (Single) */}
-      <div className="telemetry-top">
-        <span className="telemetry-dot" />
-        <span>SYSTEM ONLINE</span>
+        <div className="ref-header-actions">
+          <div className="telemetry-online-pill">
+            <span className="telemetry-dot" />
+            <span>SYSTEM ONLINE</span>
+          </div>
+          <button className="ref-icon-btn" aria-label="Search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <button className="ref-icon-btn" aria-label="Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="8" x2="21" y2="8" />
+              <line x1="3" y1="16" x2="21" y2="16" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* Telemetry Metrics Header (Reference Video Style: 30.30 | 04x | 118) */}
+      <div className="ref-telemetry-bar">
+        <div className="ref-telemetry-item">
+          <span className="ref-telemetry-val">1,139</span>
+          <span className="ref-telemetry-lbl">Slicks Tracked</span>
+        </div>
+        <div className="ref-telemetry-item">
+          <span className="ref-telemetry-val">508</span>
+          <span className="ref-telemetry-lbl">Vessels Live</span>
+        </div>
+        <div className="ref-telemetry-item">
+          <span className="ref-telemetry-val">99.4%</span>
+          <span className="ref-telemetry-lbl">Attribution Score</span>
+        </div>
       </div>
 
-      {/* Main Floating Glass Login Card */}
+      {/* Curved Orbital Ring with Rotated Text over Earth Rim (Reference Video Feature) */}
+      <div className="ref-orbit-ring-container" aria-hidden="true">
+        <svg className="ref-orbit-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax slice">
+          <defs>
+            <path
+              id="earthOrbitArc"
+              d="M 100 520 A 420 420 0 0 1 900 520"
+              fill="none"
+            />
+          </defs>
+          {/* Subtle Orbit Track Line */}
+          <path
+            d="M 100 520 A 420 420 0 0 1 900 520"
+            fill="none"
+            stroke="rgba(6, 201, 232, 0.25)"
+            strokeWidth="1.2"
+            strokeDasharray="6 6"
+          />
+          {/* Curved Text along Orbit Track */}
+          <text className="ref-orbit-text">
+            <textPath href="#earthOrbitArc" startOffset="0%">
+              • SENTINEL-1A • AIS TELEMETRY • SPILL ATTRIBUTION • S1 MONITOR • EARTH OBSERVATION • AI CORRELATION • MARITIME RADAR
+            </textPath>
+          </text>
+        </svg>
+      </div>
+
+      {/* Left Title Section (Reference Video Typography: Planet X style) */}
+      <div className="ref-hero-title-block">
+        <h1 className="ref-hero-title">
+          <span>Global Marine</span>
+          <span className="ref-title-accent">Intelligence</span>
+        </h1>
+        <p className="ref-hero-subtitle">
+          Real-time SAR satellite detection & vessel spill attribution platform
+        </p>
+      </div>
+
+      {/* Main Floating Glass Login Card (Right Side) */}
       <div className="login-card-anchor">
         <div className="cinematic-glass-card">
           {/* Top Sheen Accent Line */}
@@ -79,8 +153,8 @@ export default function LoginPage({ onLoginSuccess }) {
               <span className="brand-badge">S1 MONITOR</span>
             </div>
 
-            <h1 className="brand-title">SPILL2SOURCE</h1>
-            <p className="brand-subtitle">AI-powered marine intelligence & spill attribution</p>
+            <h2 className="brand-title">Sign In</h2>
+            <p className="brand-subtitle">Access command dashboard & live radar stream</p>
           </div>
 
           <div className="card-divider" />
@@ -90,7 +164,7 @@ export default function LoginPage({ onLoginSuccess }) {
             <div className="auth-alert" role="alert">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               <span>{error}</span>
@@ -129,7 +203,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   className="inline-link"
                   onClick={(e) => {
                     e.preventDefault()
-                    alert('Password reset instructions dispatches to your email.')
+                    alert('Password reset instructions dispatched to your email.')
                   }}
                 >
                   Forgot password?

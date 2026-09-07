@@ -177,23 +177,22 @@ function EarthBackgroundComponent({ onLoaded }) {
 
     // Orbital Satellite Perspective Camera
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
-    camera.position.set(0, 0.20, 5.0)
-    camera.lookAt(0.20, -0.10, 0)
+    camera.position.set(0, 0.15, 5.0)
+    camera.lookAt(0, -0.20, 0)
 
-    // Earth group positioned lower-left so Earth occupies ~35-45% of composition
-    // Sweeping diagonal horizon across lower-left / lower-middle
+    // Earth group positioned lower-center for reference video composition
     const earthGroup = new THREE.Group()
-    earthGroup.position.set(-1.65, -2.55, -0.15)
-    earthGroup.rotation.x = -0.18  // Angled to showcase curved horizon line
-    earthGroup.rotation.z = -0.28  // Cinematic diagonal horizon slope
-    earthGroup.rotation.y = 4.65   // Positions Western Europe / Mediterranean facing camera
+    earthGroup.position.set(-0.55, -2.85, -0.10)
+    earthGroup.rotation.x = -0.12  // Gentle forward tilt
+    earthGroup.rotation.z = -0.06  // Subtle horizon arc
+    earthGroup.rotation.y = 4.65   // City lights facing view
     scene.add(earthGroup)
 
     const EARTH_RADIUS = 3.65
     const sphereGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128)
 
-    // Sun position placed upper-left horizon (away from right login card)
-    const sunWorldPos = new THREE.Vector3(-1.95, 0.95, -0.85)
+    // Sun position placed upper-left horizon
+    const sunWorldPos = new THREE.Vector3(-1.75, 1.10, -0.85)
 
     // Realistic directional sunlight
     const sunLight = new THREE.DirectionalLight(0xfff3e0, 3.4)
@@ -518,11 +517,11 @@ function EarthBackgroundComponent({ onLoaded }) {
         camera.position.set(0, 0.35, 5.6)
         earthGroup.position.set(0, -3.20, -0.30)
       } else if (w < 1100) {
-        camera.position.set(0, 0.25, 5.2)
-        earthGroup.position.set(-0.95, -2.85, -0.20)
+        camera.position.set(0, 0.20, 5.2)
+        earthGroup.position.set(-0.35, -2.95, -0.20)
       } else {
-        camera.position.set(0, 0.20, 5.0)
-        earthGroup.position.set(-1.65, -2.55, -0.15)
+        camera.position.set(0, 0.15, 5.0)
+        earthGroup.position.set(-0.55, -2.85, -0.10)
       }
     }
 
