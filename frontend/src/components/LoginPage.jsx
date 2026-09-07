@@ -53,7 +53,7 @@ export default function LoginPage({ onLoginSuccess }) {
       {/* Subtle Right-Side Gradient for pristine card readability */}
       <div className="login-backdrop-vignette" />
 
-      {/* Minimal Top Telemetry (Tiny & discreet) */}
+      {/* Minimal Discreet Telemetry Indicator (Single) */}
       <div className="telemetry-top">
         <span className="telemetry-dot" />
         <span>SYSTEM ONLINE</span>
@@ -65,15 +65,15 @@ export default function LoginPage({ onLoginSuccess }) {
           {/* Header */}
           <div className="card-branding">
             <div className="brand-icon-wrapper">
-              <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <circle cx="16" cy="16" r="14" stroke="rgba(6, 217, 255, 0.4)" strokeWidth="1.2" />
-                <circle cx="16" cy="16" r="8" stroke="#06d9ff" strokeWidth="1.5" />
-                <circle cx="16" cy="16" r="2.5" fill="#06d9ff" />
-                <path d="M16 2V6M16 26V30M2 16H6M26 16H30" stroke="#06d9ff" strokeWidth="1.2" strokeLinecap="round" />
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="14" stroke="rgba(6, 201, 232, 0.4)" strokeWidth="1.2" />
+                <circle cx="16" cy="16" r="8" stroke="#06c9e8" strokeWidth="1.5" />
+                <circle cx="16" cy="16" r="2.5" fill="#06c9e8" />
+                <path d="M16 2V6M16 26V30M2 16H6M26 16H30" stroke="#06c9e8" strokeWidth="1.2" strokeLinecap="round" />
               </svg>
             </div>
             <h1 className="brand-title">SPILL2SOURCE</h1>
-            <p className="brand-subtitle">AI-powered marine intelligence and spill attribution</p>
+            <p className="brand-subtitle">AI-powered marine intelligence & spill attribution</p>
           </div>
 
           <div className="card-divider" />
@@ -135,12 +135,12 @@ export default function LoginPage({ onLoginSuccess }) {
                   tabIndex="-1"
                 >
                   {showPassword ? (
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
                       <line x1="1" y1="1" x2="23" y2="23" />
                     </svg>
                   ) : (
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
@@ -181,17 +181,12 @@ export default function LoginPage({ onLoginSuccess }) {
 
           {/* Discreet Demo Autofill Link */}
           <div className="card-footnote">
-            <span>Evaluating the platform? </span>
+            <span>New here? </span>
             <button type="button" className="demo-fill-btn" onClick={handleFillDemo}>
-              Use demo credentials
+              Try the demo
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Minimal Discreet Bottom Telemetry */}
-      <div className="telemetry-bottom">
-        <span>GLOBAL MARITIME SURVEILLANCE</span>
       </div>
     </div>
   )
