@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 
-// High-definition public satellite Earth texture maps
+// High-definition public NASA Earth textures
 const EARTH_DAY_URL = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
 const EARTH_NIGHT_URL = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
 
@@ -36,26 +36,22 @@ const AtmosphereShader = {
       // Thin, razor-sharp atmospheric limb edge
       float NdotV = max(0.0, dot(N, V));
       float rim = 1.0 - NdotV;
-      float rimIntensity = pow(rim, 5.0);
+      float rimIntensity = pow(rim, 5.5); // High exponent = thin atmospheric rim
       
       float sunDot = dot(N, L);
       
       vec3 electricCyan = vec3(0.02, 0.85, 1.0);
-      vec3 deepSapphire = vec3(0.01, 0.20, 0.70);
-      vec3 solarGold = vec3(1.0, 0.75, 0.30);
+      vec3 deepSapphire = vec3(0.01, 0.18, 0.65);
       
-      vec3 atmosColor = mix(deepSapphire, electricCyan, clamp(sunDot + 0.5, 0.0, 1.0));
-      if (sunDot > 0.4) {
-        atmosColor = mix(atmosColor, solarGold, (sunDot - 0.4) * 0.6);
-      }
+      vec3 atmosColor = mix(deepSapphire, electricCyan, clamp(sunDot + 0.4, 0.0, 1.0));
       
-      gl_FragColor = vec4(atmosColor * 1.5, rimIntensity * 0.85);
+      gl_FragColor = vec4(atmosColor * 1.3, rimIntensity * 0.80);
     }
   `
 }
 
 /**
- * Generate circular particle texture for pinpoint stars
+ * Generate circular particle texture for subtle pinpoint starfield
  */
 function createStarTexture() {
   const canvas = document.createElement('canvas')
@@ -108,38 +104,37 @@ function EarthBackgroundComponent({ onLoaded }) {
 
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setClearColor(0x020409, 1.0)
+    renderer.setClearColor(0x05070a, 1.0)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.0
+    renderer.toneMappingExposure = 0.95
     container.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
 
-    // Orbital Perspective Camera
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
-    camera.position.set(0, 0.15, 5.0)
-    camera.lookAt(0, -0.20, 0)
+    // Camera positioned to view smaller lower Earth (30-40% viewport width)
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000)
+    camera.position.set(0, 0, 6.0)
+    camera.lookAt(0, -0.40, 0)
 
-    // Earth group positioned lower-center for reference video composition
+    // Earth group positioned low at lower-center
     const earthGroup = new THREE.Group()
-    earthGroup.position.set(-0.55, -2.85, -0.10)
-    earthGroup.rotation.x = -0.12
-    earthGroup.rotation.z = -0.06
+    earthGroup.position.set(0, -3.35, 0)
+    earthGroup.rotation.x = -0.10
+    earthGroup.rotation.z = -0.04
     earthGroup.rotation.y = 4.65
     scene.add(earthGroup)
 
-    const EARTH_RADIUS = 3.65
+    const EARTH_RADIUS = 2.85 // Smaller radius (~35% of viewport width)
     const sphereGeo = new THREE.SphereGeometry(EARTH_RADIUS, 128, 128)
 
-    // Sun position (upper-left horizon)
-    const sunWorldPos = new THREE.Vector3(-1.75, 1.10, -0.85)
+    // Sun position (soft directional light from upper left)
+    const sunWorldPos = new THREE.Vector3(-2.2, 1.4, 0.9)
 
-    // Balanced directional lighting (prevents washed-out glare)
-    const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.6)
+    const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.4)
     sunLight.position.copy(sunWorldPos)
     scene.add(sunLight)
 
-    const ambientLight = new THREE.AmbientLight(0x081628, 0.4)
+    const ambientLight = new THREE.AmbientLight(0x061020, 0.35)
     scene.add(ambientLight)
 
     const textureLoader = new THREE.TextureLoader()
@@ -175,7 +170,7 @@ function EarthBackgroundComponent({ onLoaded }) {
         uniform vec3 uCameraPos;
         
         void main() {
-          vec3 dayTex = vec3(0.02, 0.08, 0.18);
+          vec3 dayTex = vec3(0.015, 0.06, 0.14);
           vec3 nightTex = vec3(0.0);
           
           if (texture2D(uDayTexture, vUv).a > 0.0) {
@@ -194,32 +189,32 @@ function EarthBackgroundComponent({ onLoaded }) {
           // Differentiate landmass from ocean
           float landMask = smoothstep(0.02, 0.08, (dayTex.r + dayTex.g) * 0.7 - dayTex.b * 0.5);
           
-          // Deep ocean (midnight blue)
-          vec3 ocean = vec3(0.005, 0.015, 0.035);
-          vec3 landSurface = dayTex * 0.75 + vec3(0.01, 0.02, 0.03);
+          // Deep midnight oceans
+          vec3 ocean = vec3(0.003, 0.010, 0.024);
+          vec3 landSurface = dayTex * 0.65 + vec3(0.008, 0.014, 0.025);
           vec3 baseSurface = mix(ocean, landSurface, landMask);
           
-          // Golden city lights on night side
+          // Subtle golden city lights on night side
           float cityLum = max(nightTex.r, max(nightTex.g, nightTex.b));
-          vec3 cityLights = vec3(1.0, 0.82, 0.42) * pow(cityLum, 1.2) * 3.8 * (0.3 + 0.7 * landMask);
+          vec3 cityLights = vec3(1.0, 0.80, 0.40) * pow(cityLum, 1.3) * 2.8 * (0.3 + 0.7 * landMask);
           
-          vec3 nightSide = baseSurface * 0.20 + cityLights;
-          vec3 daySide = baseSurface * (max(0.0, sunDot) * 1.1 + 0.10);
+          vec3 nightSide = baseSurface * 0.16 + cityLights;
+          vec3 daySide = baseSurface * (max(0.0, sunDot) * 0.95 + 0.08);
           
-          // Subtle ocean specular
+          // Subtle ocean specular glint
           if (sunDot > 0.0) {
             vec3 H = normalize(L + V);
-            float spec = pow(max(0.0, dot(N, H)), 40.0);
-            daySide += vec3(1.0, 0.90, 0.70) * spec * (1.0 - landMask) * 0.35;
+            float spec = pow(max(0.0, dot(N, H)), 48.0);
+            daySide += vec3(0.9, 0.85, 0.65) * spec * (1.0 - landMask) * 0.28;
           }
           
           float dayFactor = smoothstep(-0.06, 0.18, sunDot);
           vec3 finalSurface = mix(nightSide, daySide, dayFactor);
           
-          // Thin atmospheric rim haze
+          // Thin, restrained cyan atmospheric rim
           float rim = 1.0 - max(0.0, dot(N, V));
-          float rimStrength = pow(rim, 4.5);
-          finalSurface += vec3(0.02, 0.75, 1.0) * rimStrength * 0.50;
+          float rimStrength = pow(rim, 4.8);
+          finalSurface += vec3(0.02, 0.70, 0.95) * rimStrength * 0.42;
           
           gl_FragColor = vec4(finalSurface, 1.0);
         }
@@ -275,8 +270,8 @@ function EarthBackgroundComponent({ onLoaded }) {
     const atmosMesh = new THREE.Mesh(atmosGeo, atmosMat)
     earthGroup.add(atmosMesh)
 
-    // Sparse, Subtle Pinpoint Starfield
-    const starCount = 1000
+    // Pinpoint Starfield (Subtle, sparse)
+    const starCount = 800
     const starGeo = new THREE.BufferGeometry()
     const starPositions = new Float32Array(starCount * 3)
     const starColors = new Float32Array(starCount * 3)
@@ -291,20 +286,20 @@ function EarthBackgroundComponent({ onLoaded }) {
       starPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
       starPositions[i * 3 + 2] = radius * Math.cos(phi)
 
-      starColors[i * 3] = 0.90
-      starColors[i * 3 + 1] = 0.94
-      starColors[i * 3 + 2] = 1.0
+      starColors[i * 3] = 0.85
+      starColors[i * 3 + 1] = 0.90
+      starColors[i * 3 + 2] = 0.98
     }
 
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
     starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3))
 
     const starMat = new THREE.PointsMaterial({
-      size: 1.6,
+      size: 1.4,
       map: starTex,
       vertexColors: true,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.55,
       sizeAttenuation: false,
       depthWrite: false,
       blending: THREE.AdditiveBlending
@@ -312,28 +307,26 @@ function EarthBackgroundComponent({ onLoaded }) {
     const starField = new THREE.Points(starGeo, starMat)
     scene.add(starField)
 
-    // Mouse parallax
+    // Mouse parallax (very subtle)
     let mouseX = 0
     let mouseY = 0
     const handleMouseMove = (e) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.05
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 0.05
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 0.03
+      mouseY = (e.clientY / window.innerHeight - 0.5) * 0.03
     }
     window.addEventListener('mousemove', handleMouseMove)
 
-    // Animation loop (slow cinematic motion)
+    // Ultra-slow, smooth rotation loop (imperceptible, space-like movement)
     let animFrameId
     const animate = () => {
       animFrameId = requestAnimationFrame(animate)
 
-      // Smooth cinematic revolving Earth rotation
-      earthGroup.rotation.y += 0.00022
+      // Extremely slow rotation
+      earthGroup.rotation.y += 0.00010
 
-      // Subtle parallax camera breathing
-      camera.position.x += (mouseX - camera.position.x) * 0.020
-      camera.position.y += (0.15 - mouseY - camera.position.y) * 0.020
+      camera.position.x += (mouseX - camera.position.x) * 0.015
+      camera.position.y += (-mouseY - camera.position.y) * 0.015
 
-      // Update shader uniforms
       earthMat.uniforms.uCameraPos.value.copy(camera.position)
       atmosMat.uniforms.uCameraPos.value.copy(camera.position)
 
@@ -343,7 +336,7 @@ function EarthBackgroundComponent({ onLoaded }) {
     animate()
     if (onLoadedRef.current) onLoadedRef.current()
 
-    // Responsive resize handler
+    // Responsive resize handler (maintains 30-40% viewport width composition)
     const handleResize = () => {
       if (!container) return
       const w = container.clientWidth || window.innerWidth
@@ -354,14 +347,14 @@ function EarthBackgroundComponent({ onLoaded }) {
       renderer.setSize(w, h)
 
       if (w < 768) {
-        camera.position.set(0, 0.35, 5.6)
-        earthGroup.position.set(0, -3.20, -0.30)
+        camera.position.set(0, 0.20, 6.4)
+        earthGroup.position.set(0, -3.50, 0)
       } else if (w < 1100) {
-        camera.position.set(0, 0.20, 5.2)
-        earthGroup.position.set(-0.35, -2.95, -0.20)
+        camera.position.set(0, 0.10, 6.2)
+        earthGroup.position.set(0, -3.40, 0)
       } else {
-        camera.position.set(0, 0.15, 5.0)
-        earthGroup.position.set(-0.55, -2.85, -0.10)
+        camera.position.set(0, 0, 6.0)
+        earthGroup.position.set(0, -3.35, 0)
       }
     }
 

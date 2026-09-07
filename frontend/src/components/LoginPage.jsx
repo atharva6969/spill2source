@@ -47,14 +47,14 @@ export default function LoginPage({ onLoginSuccess }) {
 
   return (
     <div className={`login-page-container ${sceneLoaded ? 'loaded' : ''}`}>
-      {/* 3D Earth WebGL Background */}
+      {/* 3D Earth WebGL Background - Small & Positioned Low (30-40% Width) */}
       <EarthBackground onLoaded={handleSceneLoaded} />
 
-      {/* Top Header Bar (Reference Video Style) */}
+      {/* Top Header Navigation (Minimalist) */}
       <header className="ref-top-header">
         <div className="ref-brand-logo">
-          <svg className="ref-star-icon" width="22" height="22" viewBox="0 0 32 32" fill="none">
-            <path d="M16 2L19.5 12.5L30 16L19.5 19.5L16 30L12.5 19.5L2 16L12.5 12.5L16 2Z" fill="#06c9e8" />
+          <svg className="ref-star-icon" width="20" height="20" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L19.5 12.5L30 16L19.5 19.5L16 30L12.5 19.5L2 16L12.5 12.5L16 2Z" fill="#ffffff" />
           </svg>
           <span className="ref-brand-name">SPILL2SOURCE</span>
         </div>
@@ -67,42 +67,53 @@ export default function LoginPage({ onLoginSuccess }) {
         </div>
       </header>
 
-      {/* Left Title Section (Reference Video Typography Style) */}
+      {/* Editorial Headline (Swiss / Typography-Driven) */}
       <div className="ref-hero-title-block">
         <h1 className="ref-hero-title">
-          <span>Global Marine</span>
-          <span className="ref-title-accent">Intelligence</span>
+          <span>GLOBAL MARINE</span>
+          <span className="ref-title-accent">INTELLIGENCE</span>
         </h1>
         <p className="ref-hero-subtitle">
-          Real-time SAR satellite detection & vessel spill attribution platform
+          Real-time satellite intelligence for marine monitoring and spill attribution.
         </p>
       </div>
 
-      {/* Main Floating Glass Login Card (Right Side) */}
+      {/* Subtle Scientific Annotations (15% Opacity Orbit Arc) */}
+      <div className="ref-orbit-ring-container" aria-hidden="true">
+        <svg className="ref-orbit-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax meet">
+          <defs>
+            <path
+              id="subtleOrbitArc"
+              d="M 200 520 A 320 320 0 0 1 800 520"
+              fill="none"
+            />
+          </defs>
+          {/* Subtle Concentric Scientific Measurement Arc */}
+          <circle
+            cx="500"
+            cy="520"
+            r="320"
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.12)"
+            strokeWidth="1"
+            strokeDasharray="3 5"
+          />
+          {/* Subtle Scientific Coordinates (15% Opacity) */}
+          <text className="ref-orbit-text">
+            <textPath href="#subtleOrbitArc" startOffset="50%" textAnchor="middle">
+              01.40 // SAR RADAR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LAT 54° 12' N &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ATTRIBUTION NET &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; S1 OBSERVATION NODE
+            </textPath>
+          </text>
+        </svg>
+      </div>
+
+      {/* Refined Lightweight Minimal Login Card (Right Side, 380px, No Heavy Glassmorphism) */}
       <div className="login-card-anchor">
-        <div className="cinematic-glass-card">
-          {/* Top Sheen Accent Line */}
-          <div className="card-top-sheen" />
-
-          {/* Header */}
-          <div className="card-branding">
-            <div className="brand-header-row">
-              <div className="brand-icon-wrapper">
-                <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-                  <circle cx="16" cy="16" r="14" stroke="rgba(6, 201, 232, 0.35)" strokeWidth="1.2" />
-                  <circle cx="16" cy="16" r="8" stroke="#06c9e8" strokeWidth="1.5" />
-                  <circle cx="16" cy="16" r="2.5" fill="#06c9e8" />
-                  <path d="M16 2V6M16 26V30M2 16H6M26 16H30" stroke="#06c9e8" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <span className="brand-badge">S1 MONITOR</span>
-            </div>
-
-            <h2 className="brand-title">Sign In</h2>
-            <p className="brand-subtitle">Access command dashboard & live radar stream</p>
+        <div className="minimal-editor-card">
+          <div className="card-header">
+            <h2 className="card-title">Sign in</h2>
+            <p className="card-subtitle">Enter your organization credentials</p>
           </div>
-
-          <div className="card-divider" />
 
           {/* Validation Alert */}
           {error && (
@@ -120,23 +131,17 @@ export default function LoginPage({ onLoginSuccess }) {
           <form onSubmit={handleSubmit} className="auth-form">
             {/* Email */}
             <div className="form-field">
-              <label htmlFor="login-email">Email Address</label>
-              <div className="input-icon-wrapper">
-                <svg className="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-                <input
-                  id="login-email"
-                  type="email"
-                  placeholder="name@organization.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  spellCheck="false"
-                />
-              </div>
+              <label htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                placeholder="name@organization.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                spellCheck="false"
+              />
             </div>
 
             {/* Password */}
@@ -151,14 +156,10 @@ export default function LoginPage({ onLoginSuccess }) {
                     alert('Password reset instructions dispatched to your email.')
                   }}
                 >
-                  Forgot password?
+                  Forgot?
                 </a>
               </div>
-              <div className="input-icon-wrapper">
-                <svg className="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
+              <div className="input-password-wrapper">
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -216,11 +217,8 @@ export default function LoginPage({ onLoginSuccess }) {
                 </span>
               ) : (
                 <span className="btn-content">
-                  <span>Sign In</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="12 5 19 12 12 19" />
-                  </svg>
+                  <span>Sign in</span>
+                  <span className="btn-arrow">→</span>
                 </span>
               )}
             </button>
@@ -228,9 +226,8 @@ export default function LoginPage({ onLoginSuccess }) {
 
           {/* Discreet Demo Autofill Link */}
           <div className="card-footnote">
-            <span>New here? </span>
             <button type="button" className="demo-fill-btn" onClick={handleFillDemo}>
-              Try demo credentials
+              Use demo credentials
             </button>
           </div>
         </div>
