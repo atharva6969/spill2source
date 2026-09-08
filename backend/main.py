@@ -81,17 +81,30 @@ async def vessels_live():
 
 
 @app.get("/api/vessels/{mmsi}/track")
-async def vessel_track(mmsi: int, hours: float = 12,
+async def vessel_track(mmsi: int, hours: float = 18,
                        from_ts: float | None = None, to_ts: float | None = None):
     if from_ts is not None and to_ts is not None:
         rows = store.query(
             "SELECT ts,lon,lat,sog,cog FROM ais_positions "
             "WHERE mmsi=? AND ts BETWEEN ? AND ? ORDER BY ts",
             (mmsi, from_ts, to_ts))
+        if not rows:
+            # Fallback to closest fixes around the requested timestamp range
+            rows = store.query(
+                "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? "
+                "ORDER BY ABS(ts - ?) LIMIT 100", (mmsi, (from_ts + to_ts) / 2.0))
+            rows = sorted(rows, key=lambda r: r["ts"])
     else:
+        max_ts_row = store.one("SELECT MAX(ts) as max_ts FROM ais_positions WHERE mmsi=?", (mmsi,))
+        max_ts = max_ts_row["max_ts"] if (max_ts_row and max_ts_row["max_ts"]) else time.time()
         rows = store.query(
-            "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? AND ts>? "
-            "ORDER BY ts", (mmsi, time.time() - hours * 3600))
+            "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? AND ts >= ? "
+            "ORDER BY ts", (mmsi, max_ts - hours * 3600))
+        if not rows:
+            rows = store.query(
+                "SELECT ts,lon,lat,sog,cog FROM ais_positions WHERE mmsi=? "
+                "ORDER BY ts DESC LIMIT 300", (mmsi,))
+            rows = list(reversed(rows))
     return {"mmsi": mmsi, "points": [
         [r["lon"], r["lat"], r["ts"], r["sog"], r["cog"]] for r in rows]}
 

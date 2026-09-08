@@ -366,6 +366,10 @@ export default function MapView({
         const coords = bwPts.map((p) => [p[0], p[1]])
         back.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })
         addLabel(map, midpoint(coords), 'Backward Drift Hindcast', 'left')
+      } else if (bw && bw.origin_lon != null && det.centroid_lon != null) {
+        const coords = [[det.centroid_lon, det.centroid_lat], [bw.origin_lon, bw.origin_lat]]
+        back.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })
+        addLabel(map, midpoint(coords), 'Backward Drift Hindcast', 'left')
       }
 
       const fwPts = (fw?.path?.centroid_path || []).filter((p) => p?.[0] != null)
@@ -373,6 +377,13 @@ export default function MapView({
         const coords = fwPts.map((p) => [p[0], p[1]])
         fwd.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })
         addLabel(map, midpoint(coords), 'Forward Forecast', 'left')
+      } else if (fwPts.length === 1 && det.centroid_lon != null && (fw?.cone?.length)) {
+        const lastCone = fw.cone[fw.cone.length - 1]
+        if (lastCone?.lon != null) {
+          const coords = [[det.centroid_lon, det.centroid_lat], [lastCone.lon, lastCone.lat]]
+          fwd.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } })
+          addLabel(map, midpoint(coords), 'Forward Forecast', 'left')
+        }
       }
 
       const coneList = (fw?.cone || []).filter((k) => k.lon != null)
@@ -639,6 +650,9 @@ export default function MapView({
     if (!map || !readyRef.current) return
     try {
       map.setProjection({ type: projection === 'flat' ? 'mercator' : 'globe' })
+      if (projection === 'flat') {
+        map.easeTo({ pitch: 0, bearing: 0, duration: 600 })
+      }
     } catch { /* older build without globe support */ }
   }, [projection])
 

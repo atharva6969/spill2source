@@ -213,6 +213,8 @@ class DriftModel:
                 for t, s in zip(snap_t, snap_spread)
             ],
             "centroid_path": [
+                [0.0, 0.0, detect_ts]
+            ] + [
                 [float(v[0]), float(v[1]), float(t)]
                 for v, t in zip(snap_c[:i_sel + 1], snap_t[:i_sel + 1])
             ],
@@ -233,13 +235,13 @@ class DriftModel:
 
         props = slick_props or {}
         major_km = props.get("major_axis_km", 0.3)
-        base_radius_km = max(major_km * 0.03, 0.05)
+        base_radius_km = max(major_km * 0.1, 0.1)
 
         ts, cs, sp = res["snap_t"], res["snap_c"], res["snap_spread"]
         cones = []
         for t, c, s in zip(ts, cs, sp):
-            # Scale spread down to a compact milestone point marker radius (0.12x)
-            r_km = (float(s) * 0.12) / 1000.0 + base_radius_km
+            # Scale spread dynamically based on slick particle dispersion
+            r_km = (float(s) * 0.6) / 1000.0 + base_radius_km
             cones.append({
                 "ts": float(t),
                 "centroid": [float(c[0]), float(c[1])],
@@ -249,6 +251,8 @@ class DriftModel:
             "direction": "forward",
             "cones": cones,
             "centroid_path": [
+                [0.0, 0.0, start_ts]
+            ] + [
                 [float(v[0]), float(v[1]), float(tt)]
                 for v, tt in zip(cs, ts)
             ],

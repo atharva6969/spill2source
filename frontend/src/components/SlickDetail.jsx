@@ -75,18 +75,22 @@ export default function SlickDetail({
 
   const locateAtRelease = (s) => {
     const rel = bw?.release_time || bw?.release_ts
-    if (!rel) return
-    const qs = `from_ts=${rel - 3 * 3600}&to_ts=${rel + 3 * 3600}`
+    const qs = rel ? `from_ts=${rel - 3 * 3600}&to_ts=${rel + 3 * 3600}` : ''
     getJSON(`/api/vessels/${s.mmsi}/track?${qs}`)
       .then((tr) => {
-        if (!tr.points?.length) return
+        if (!tr.points?.length) {
+          onSelectVessel(s.mmsi)
+          return
+        }
         window.dispatchEvent(
           new CustomEvent('vessel-track', {
             detail: { ...tr, highlight_ts: rel, name: s.name || `MMSI ${s.mmsi}` },
           })
         )
       })
-      .catch(() => {})
+      .catch(() => {
+        onSelectVessel(s.mmsi)
+      })
   }
 
   const releaseTs = bw?.release_time || bw?.release_ts

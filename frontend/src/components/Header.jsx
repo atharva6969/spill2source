@@ -16,6 +16,8 @@ export default function Header({
   basemapKey,
   onSelectBasemap,
   basemaps,
+  projection = 'globe',
+  onToggleProjection,
   onResetView,
   userSession,
   onLogout,
@@ -132,6 +134,21 @@ export default function Header({
             )}
           </div>
         )}
+
+        {/* 2D/3D Map Projection Toggle */}
+        <button
+          className={`header-btn ${projection === 'flat' ? 'on' : ''}`}
+          onClick={onToggleProjection}
+          title={projection === 'globe' ? 'Switch to 2D Flat Mercator View' : 'Switch to 3D Earth Globe View'}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="9" />
+            <line x1="3.6" y1="9" x2="20.4" y2="9" />
+            <line x1="3.6" y1="15" x2="20.4" y2="15" />
+            <path d="M11.5 3a17 17 0 0 0 0 18" />
+            <path d="M12.5 3a17 17 0 0 1 0 18" />
+          </svg>
+          <span>{projection === 'globe' ? '3D GLOBE' : '2D FLAT'}</span>
+        </button>
 
         {/* AIS Traffic Toggle */}
         <button
