@@ -289,7 +289,7 @@ def _json(v):
 def parse_product_name(name: str):
     """S1C_IW_GRDH_1SDV_20260824T153122_... -> dict of mission/mode/time."""
     m = re.match(
-        r"(S1[ABCD])_(IW|EW|SM)_(GRD[HMS])_(1S(?:[DV][HV]|[HV]))_([\dT]{15})_",
+        r"(S1[ABCD])_(IW|EW|SM)_(GRD[HMS])_(1S(?:D[HV]|S[HV]))_([\dT]{15})_",
         name)
     if not m:
         return {}

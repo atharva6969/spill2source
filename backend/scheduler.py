@@ -64,6 +64,10 @@ class System:
         self.fields: FieldSet | None = None
         self.started_at = time.time()
         self._tasks: list[asyncio.Task] = []
+        # cached disk usage so /api/status & WS hello don't walk the tree on
+        # every call; refreshed lazily after CACHE_TTL seconds
+        self._disk_cache_mb: float | None = None
+        self._disk_cached_at: float = 0.0
 
     # ---- events ------------------------------------------------------------
     async def emit(self, kind: str, severity: str, message: str,
@@ -94,8 +98,13 @@ class System:
         ]
 
     async def shutdown(self) -> None:
+        # Await the cancelled tasks so no background loop is still mid-write
+        # when close() runs; otherwise the store's SQLite conn can be closed
+        # under a live writer (ProgrammingError / aborted write).
         for t in self._tasks:
             t.cancel()
+        if self._tasks:
+            await asyncio.gather(*self._tasks, return_exceptions=True)
         await self.ais.close()
         await self.met.close()
         await self.cdse.close()
@@ -112,6 +121,8 @@ class System:
                 await self.ais.refresh_metadata()
                 # keep rolling history bounded (7 days)
                 self.store.prune_positions(keep_seconds=7 * 86400)
+                # bound the event log too (30 days) so it cannot grow unbounded
+                self.store.prune_events(keep_seconds=30 * 86400)
             except Exception as exc:
                 self.ais.error = str(exc)
                 log.error("AIS loop: %s", exc)
@@ -218,14 +229,17 @@ class System:
 
     async def _post_detect(self, product_id: str, meta: dict,
                            slick_ids: list) -> dict:
-        # auto-analyse the strongest candidates; the rest on demand
-        rows = [self.store.one("SELECT * FROM slicks WHERE id=?", (sid,))
-                for sid in slick_ids]
-        rows = [r for r in rows if r]
-        auto = sorted(rows, key=lambda r: -(r["confidence"] or 0))[:8]
-        auto = [r for r in auto if (r["confidence"] or 0) >= 0.55]
-        for r in auto:
-            await self.analyze_slick(r["id"])
+        # A detection pipeline exception sets the scene to 'error' (not 'clear').
+        # Distinguish that from a genuine all-clear so a crash never surfaces
+        # as a false "sea clear" alert to responders.
+        cur = self.store.one(
+            "SELECT status FROM scenes WHERE product_id=?", (product_id,))
+        if cur and cur["status"] == "error":
+            await self.emit("scene", "error",
+                            f"{meta['name']}: detection failed - see scene log")
+            return {"ok": False, "reason": "detection_error",
+                    "slick_ids": slick_ids}
+
         if not slick_ids:
             await self.emit("scene", "info",
                             f"{meta['name']}: scanned - no oil-like dark "
@@ -233,7 +247,7 @@ class System:
         else:
             await self.emit("slick", "alert",
                             f"{len(slick_ids)} oil-candidate patch(es) detected "
-                            f"in {meta['name']}; {len(auto)} analysed",
+                            f"in {meta['name']}",
                             {"slick_ids": slick_ids})
         return {"ok": True, "slick_ids": slick_ids}
 
@@ -243,38 +257,33 @@ class System:
         slick = self.store.one("SELECT * FROM slicks WHERE id=?", (slick_id,))
         if not slick:
             raise ValueError("unknown slick id")
-        # ensure met fields are available (retry up to 3 times with delay)
-        if self.fields is None:
-            for attempt in range(3):
-                ok = await self.met.refresh()
-                if ok:
-                    self.fields = FieldSet(self.met)
-                    break
-                log.warning("met refresh attempt %d/%d failed", attempt + 1, 3)
-                await asyncio.sleep(5)
-        if self.fields is None:
+        detect_ts = slick["detected_at"]
+        drift_back_s = self.settings.drift_hours_back * 3600
+        drift_fwd_s = self.settings.drift_hours_fwd * 3600
+
+        # retrieve met fields covering the specific detection window [detect_ts - back, detect_ts + fwd]
+        try:
+            fields = await self.met.get_fields_for_window(detect_ts - drift_back_s, detect_ts + drift_fwd_s)
+        except Exception as exc:
+            log.warning("Could not get windowed met fields: %s, checking live fields", exc)
+            if self.fields is None:
+                await self.met.refresh()
+                self.fields = FieldSet(self.met)
+            fields = self.fields
+
+        if fields is None:
             return {"ok": False, "reason": "met_fields_not_ready",
                     "error": self.met.error}
+
         from shapely.geometry import shape
         gj = json.loads(slick["geometry"])
         poly = shape(gj["geometry"])
-        detect_ts = slick["detected_at"]
 
-        # validate detection time is within met data coverage
-        met_start = float(self.fields.times[0])
-        met_end = float(self.fields.times[-1])
-        drift_back = self.settings.drift_hours_back * 3600
-        earliest_needed = detect_ts - drift_back
-        if earliest_needed < met_start or detect_ts > met_end:
-            log.warning("slick %d detected at %s outside met range [%s, %s] — "
-                        "results may be inaccurate",
-                        slick_id, _iso(detect_ts), _iso(met_start), _iso(met_end))
-
-        dm = DriftModel(self.fields, self.settings)
+        dm = DriftModel(fields, self.settings)
         loop = asyncio.get_running_loop()
 
-        bw_task = loop.run_in_executor(None, lambda: dm.backward(poly, detect_ts))
-        fw_task = loop.run_in_executor(None, lambda: dm.forward(poly, detect_ts))
+        bw_task = loop.run_in_executor(None, lambda: dm.backward(poly, detect_ts, slick_props=slick))
+        fw_task = loop.run_in_executor(None, lambda: dm.forward(poly, detect_ts, slick_props=slick))
         bw, fw = await asyncio.gather(bw_task, fw_task)
 
         # persist backward (origin estimate); convert local-metre paths to lon/lat
@@ -294,48 +303,53 @@ class System:
                                         bw))
         top = suspects[:15]
 
-        # H4: compute-then-swap — only delete old data after new results are ready
-        self.store.exec("DELETE FROM drift_runs WHERE slick_id=?", (slick_id,))
-        self.store.exec("DELETE FROM suspects WHERE slick_id=?", (slick_id,))
-
-        self.store.exec(
-            """INSERT INTO drift_runs(slick_id,direction,started_at,origin_lon,
-               origin_lat,origin_sigma_km,release_time,spread_curve,path,particles)
-               VALUES(?,?,?,?,?,?,?,?,?,?)""",
-            (slick_id, "backward", time.time(), bw["origin_lon"],
-             bw["origin_lat"], bw["origin_sigma_km"], bw["release_ts"],
-             json.dumps(bw["spread_curve"]),
-             json.dumps({"centroid_path": to_ll_path(bw["centroid_path"])}),
-             json.dumps([])))
-        # persist forward (forecast cone)
+        # H4: compute-then-swap — atomically replace the previous analysis so a
+        # crash mid-swap can never leave a slick with a backward run but no
+        # forward run, or mixed/missing suspects.
         cones_ll = []
         for c in fw["cones"]:
             lon, lat = frame.to_ll(*c["centroid"]) if frame else (None, None)
             cones_ll.append({"ts": c["ts"], "lon": lon, "lat": lat,
                              "radius_km": c["radius_km"]})
         fwd_path = to_ll_path(fw["centroid_path"])
-        self.store.exec(
-            """INSERT INTO drift_runs(slick_id,direction,started_at,path,cone)
-               VALUES(?,?,?,?,?)""",
-            (slick_id, "forward", time.time(),
-             json.dumps({"centroid_path": fwd_path}),
-             json.dumps(cones_ll)))
-
-        # update slick age estimate
-        self.store.exec(
-            "UPDATE slicks SET age_estimate_h=?, age_sigma_h=? WHERE id=?",
-            (bw["age_h"], min(bw["origin_sigma_km"] / 3.0, 6.0), slick_id))
-
         now = time.time()
-        for r in top:
+        with self.store.transaction():
+            self.store.exec("DELETE FROM drift_runs WHERE slick_id=?",
+                            (slick_id,))
+            self.store.exec("DELETE FROM suspects WHERE slick_id=?",
+                            (slick_id,))
+
             self.store.exec(
-                """INSERT INTO suspects(slick_id,mmsi,score,rank,factors,computed_at)
-                   VALUES(?,?,?,?,?,?)
-                   ON CONFLICT(slick_id,mmsi) DO UPDATE SET score=excluded.score,
-                     rank=excluded.rank, factors=excluded.factors,
-                     computed_at=excluded.computed_at""",
-                (slick_id, r["mmsi"], r["score"], r["rank"],
-                 json.dumps(r["factors"]), now))
+                """INSERT INTO drift_runs(slick_id,direction,started_at,origin_lon,
+                   origin_lat,origin_sigma_km,release_time,spread_curve,path,particles)
+                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                (slick_id, "backward", now, bw["origin_lon"],
+                 bw["origin_lat"], bw["origin_sigma_km"], bw["release_ts"],
+                 json.dumps(bw["spread_curve"]),
+                 json.dumps({"centroid_path": to_ll_path(bw["centroid_path"])}),
+                 json.dumps([])))
+            # persist forward (forecast cone)
+            self.store.exec(
+                """INSERT INTO drift_runs(slick_id,direction,started_at,path,cone)
+                   VALUES(?,?,?,?,?)""",
+                (slick_id, "forward", now,
+                 json.dumps({"centroid_path": fwd_path}),
+                 json.dumps(cones_ll)))
+
+            # update slick age estimate
+            self.store.exec(
+                "UPDATE slicks SET age_estimate_h=?, age_sigma_h=? WHERE id=?",
+                (bw["age_h"], min(bw["origin_sigma_km"] / 3.0, 6.0), slick_id))
+
+            for r in top:
+                self.store.exec(
+                    """INSERT INTO suspects(slick_id,mmsi,score,rank,factors,computed_at)
+                       VALUES(?,?,?,?,?,?)
+                       ON CONFLICT(slick_id,mmsi) DO UPDATE SET score=excluded.score,
+                         rank=excluded.rank, factors=excluded.factors,
+                         computed_at=excluded.computed_at""",
+                    (slick_id, r["mmsi"], r["score"], r["rank"],
+                     json.dumps(r["factors"]), now))
 
         origin_ll = (bw["origin_lon"], bw["origin_lat"])
         await self.emit("analysis", "alert" if suspects else "info",
@@ -357,7 +371,7 @@ class System:
         scenes = self.store.query(
             "SELECT status, COUNT(*) c FROM scenes GROUP BY status")
         slick_count = self.store.one("SELECT COUNT(*) c FROM slicks")["c"]
-        scene_disk_mb = _scene_disk_usage_mb(settings.data_dir / "scenes")
+        scene_disk_mb = self._scene_disk_mb_cached()
         return {
             "uptime_s": round(time.time() - self.started_at),
             "cdse_configured": self.cdse.configured,
@@ -373,6 +387,15 @@ class System:
             "scene_disk_mb": scene_disk_mb,
             "aoi_bbox": self.settings.aoi_bbox,
         }
+
+    def _scene_disk_mb_cached(self) -> float:
+        """Layer on a 60 s TTL to keep the blocking directory walk off the
+        hot `/api/status` and WebSocket-hello paths."""
+        now = time.time()
+        if self._disk_cache_mb is None or now - self._disk_cached_at > 60:
+            self._disk_cache_mb = _scene_disk_usage_mb(settings.data_dir / "scenes")
+            self._disk_cached_at = now
+        return self._disk_cache_mb
 
     # ---- scene cleanup --------------------------------------------------------
     async def _cleanup_old_scenes(self) -> None:
@@ -398,7 +421,11 @@ class System:
             if not d.is_dir():
                 continue
             dir_name = d.name
-            if any(dir_name.endswith(p) for p in self._processing):
+            # SAFE dirs are named by scene name (e.g. S1C_IW_GRDH_...SAFE);
+            # _processing tracks product_ids, so compare against any processed
+            # scene name suffix to avoid deleting an in-flight extraction.
+            if any(dir_name.endswith(p) or dir_name.endswith(p + ".SAFE")
+                   for p in self._processing):
                 continue
             row = self.store.one(
                 "SELECT status, sensed_start FROM scenes WHERE name=? OR product_id=?",
@@ -415,9 +442,11 @@ class System:
         if total > max_bytes:
             zips = []
             for f in scenes_dir.glob("*.zip"):
+                # zips are saved as <scene_name>.zip (see sentinel_cdse
+                # _download_full), so match against the name column.
                 row = self.store.one(
-                    "SELECT status, sensed_start FROM scenes WHERE product_id=?",
-                    (f.stem,))
+                    "SELECT status, sensed_start FROM scenes WHERE name=? OR product_id=?",
+                    (f.stem, f.stem))
                 if row and row["status"] in ("detected", "clear", "error"):
                     zips.append((f, row["sensed_start"] or 0))
             zips.sort(key=lambda x: x[1])  # oldest first
@@ -434,7 +463,8 @@ class System:
         for d in list(scenes_dir.iterdir()):
             if not d.is_dir():
                 continue
-            if any(d.name.endswith(p) for p in self._processing):
+            if any(d.name.endswith(p) or d.name.endswith(p + ".SAFE")
+                   for p in self._processing):
                 continue  # H5: skip scenes currently being processed
             row = self.store.one(
                 "SELECT sensed_start FROM scenes WHERE name=? OR product_id=?",

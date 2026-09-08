@@ -185,7 +185,7 @@ function addOverlays(map) {
   })
   layer({
     id: 'cone-line', type: 'line', source: 's-cone',
-    paint: { 'line-color': C.cyan, 'line-width': 1, 'line-opacity': 0.3 },
+    paint: { 'line-color': C.cyan, 'line-width': 1, 'line-opacity': 0.4, 'line-dasharray': [2, 2] },
   })
   layer({
     id: 'footprint-fill', type: 'fill', source: 's-footprint',
@@ -375,13 +375,17 @@ export default function MapView({
         addLabel(map, midpoint(coords), 'Forward Forecast', 'left')
       }
 
-      for (const c of (fw?.cone || []).filter((k) => k.lon != null)) {
-        cone.push({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'Polygon', coordinates: [circleRing(c.lon, c.lat, c.radius_km)] },
-        })
-      }
+      const coneList = (fw?.cone || []).filter((k) => k.lon != null)
+      coneList.forEach((c, idx) => {
+        // Space out circles every 3 hours plus final forecast horizon for a clean presentation
+        if (idx % 3 === 2 || idx === coneList.length - 1 || idx === 0) {
+          cone.push({
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'Polygon', coordinates: [circleRing(c.lon, c.lat, c.radius_km)] },
+          })
+        }
+      })
 
       const geom = det.geometry?.geometry
       if (geom?.coordinates?.length) {

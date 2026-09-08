@@ -5,11 +5,12 @@ first launch - attribution windows are answered from this store.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
 import time
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ais_positions (
@@ -95,17 +96,26 @@ class Store:
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False,
                                      timeout=30)
         self._conn.row_factory = sqlite3.Row
-        self._lock = threading.Lock()
-        with self._lock, self._conn:
+        # Autocommit mode: Python's implicit transaction handling (default
+        # isolation_level="") would otherwise start/commit around DML on its
+        # own, defeating explicit BEGIN/COMMIT used by transaction().
+        self._conn.isolation_level = None
+        # RLock so a transaction context (holds the lock across its batch) can
+        # re-enter via exec()/query() without self-deadlocking.
+        self._lock = threading.RLock()
+        with self._lock:
             self._conn.execute("PRAGMA busy_timeout = 30000")
             self._conn.executescript(SCHEMA)
 
     def exec(self, sql: str, params: Iterable = ()) -> None:
-        with self._lock, self._conn:
+        # NB: no `with self._conn` here — its __exit__ would COMMIT, which
+        # would break an enclosing transaction() batch. Autocommit mode
+        # (isolation_level=None) commits each statement on its own.
+        with self._lock:
             self._conn.execute(sql, tuple(params))
 
     def exec_many(self, sql: str, rows: list[tuple]) -> None:
-        with self._lock, self._conn:
+        with self._lock:
             self._conn.executemany(sql, rows)
 
     def query(self, sql: str, params: Iterable = ()) -> list[dict]:
@@ -122,7 +132,7 @@ class Store:
         """rows: (mmsi, ts, lon, lat, sog, cog, navstat)"""
         if not rows:
             return 0
-        with self._lock, self._conn:
+        with self._lock:
             before = self._conn.total_changes
             self._conn.executemany(
                 "INSERT OR IGNORE INTO ais_positions(mmsi, ts, lon, lat, sog, cog, navstat)"
@@ -150,7 +160,7 @@ class Store:
             })
         if not rows:
             return
-        with self._lock, self._conn:
+        with self._lock:
             self._conn.executemany(
                 """INSERT INTO vessels(mmsi,name,ship_type,dest,draught,imo,call_sign,length,width,updated)
                    VALUES(:mmsi,:name,:shipType,:destination,:draught,:imo,:callSign,:length,:width,:updated)
@@ -165,9 +175,32 @@ class Store:
         cutoff = time.time() - keep_seconds
         self.exec("DELETE FROM ais_positions WHERE ts < ?", (cutoff,))
 
+    def prune_events(self, keep_seconds: float) -> None:
+        """Bound the events table so it cannot grow without limit."""
+        cutoff = time.time() - keep_seconds
+        self.exec("DELETE FROM events WHERE ts < ?", (cutoff,))
+
+    @contextlib.contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Run a batch of writes atomically; roll back on exception.
+
+        Tells SQLite it cannot defer WAL checkpoint past this frame's
+        transaction, and only commits if the block completes without error.
+        """
+        with self._lock:
+            try:
+                self._conn.execute("BEGIN")
+                yield
+                self._conn.execute("COMMIT")
+            except BaseException:
+                self._conn.execute("ROLLBACK")
+                raise
+
     def close(self) -> None:
         with self._lock:
-            self._conn.close()
+            if self._conn:
+                self._conn.close()
+                self._conn = None
 
     # ---- generic JSON helpers ----------------------------------------------
     @staticmethod

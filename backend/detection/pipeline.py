@@ -49,8 +49,12 @@ class DetectionPipeline:
             self._unet_loaded = True
             if ckpt.exists() and mode in ("auto", "unet"):
                 import torch
+                from .unet import UNetSmall
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                ck = torch.load(ckpt, weights_only=False)
+                # weights_only guards against arbitrary-code-execution via a
+                # tampered checkpoint. The checkpoint stores {base:int,
+                # state_dict:OrderedDict[tensors]} — both safe globals.
+                ck = torch.load(ckpt, map_location='cpu', weights_only=True)
                 self._unet = UNetSmall(base=ck.get('base', 16))
                 self._unet.load_state_dict(ck['state_dict'])
                 self._unet.to(device)

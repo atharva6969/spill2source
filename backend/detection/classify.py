@@ -8,7 +8,6 @@ Two paths:
 from __future__ import annotations
 
 import math
-from pathlib import Path
 
 import numpy as np
 
@@ -16,7 +15,30 @@ FEATURE_ORDER = ["area_km2", "complexity", "contrast_db", "edge_sharpness",
                  "homogeneity", "elongation", "dark_fraction_local",
                  "dist_land_km"]
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "data" / "model_rf.joblib"
+_model: object | None = None
+_model_path: str | None = None
+
+
+def _model_path() -> str | None:
+    """Locate the RF model inside the configured data dir (honours DATA_DIR)."""
+    from ..config import settings
+    p = settings.data_dir / "model_rf.joblib"
+    return str(p) if p.exists() else None
+
+
+def _load_model():
+    """Load the RFC model once and cache it (it is used per scene)."""
+    global _model, _model_path
+    path = _model_path()
+    if path is None:
+        _model = None
+        return None
+    if _model is not None and _model_path == path:
+        return _model
+    import joblib
+    _model = joblib.load(path)
+    _model_path = path
+    return _model
 
 
 def prior_score(f: dict) -> float:
@@ -51,10 +73,9 @@ def prior_score(f: dict) -> float:
 
 
 def rf_score(features_list: list[dict]) -> list[float] | None:
-    if not MODEL_PATH.exists():
+    model = _load_model()
+    if model is None:
         return None
-    import joblib
-    model = joblib.load(MODEL_PATH)
     X = [_vectorize(f) for f in features_list]
     return [float(p[1]) for p in model.predict_proba(X)]
 

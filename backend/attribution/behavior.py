@@ -77,16 +77,24 @@ def _shore_km(lons_a, lats_a):
     return grid[iy, ix]
 
 
-def vessel_behavior_stats(store, mmsi: int) -> dict:
-    """Behavioural anomaly in [0,1] plus the raw indicators."""
+def vessel_behavior_stats(store, mmsi: int,
+                          prefetched: list[dict] | None = None) -> dict:
+    """Behavioural anomaly in [0,1] plus the raw indicators.
+
+    ``prefetched`` may carry this vessel's full ais_positions rows to avoid
+    a per-candidate DB query (bulk-prefetched once per analysis).
+    """
     now = time.time()
     hit = _CACHE.get(mmsi)
     if hit and now - hit[0] < _CACHE_TTL:
         return hit[1]
 
-    rows = store.query(
-        "SELECT ts,lon,lat,sog FROM ais_positions WHERE mmsi=? ORDER BY ts",
-        (mmsi,))
+    if prefetched is None:
+        rows = store.query(
+            "SELECT ts,lon,lat,sog FROM ais_positions WHERE mmsi=? ORDER BY ts",
+            (mmsi,))
+    else:
+        rows = prefetched
     out = {"n_fixes": len(rows), "anomaly": 0.0,
            "slow_open_sea": 0.0, "night_slow": 0.0, "gap_max_min": 0.0}
     if len(rows) < 20:

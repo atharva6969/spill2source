@@ -35,7 +35,6 @@ def geometry_properties(geom) -> dict:
     """Major/minor axis (km) and orientation via second-moment ellipse."""
     c = geom.centroid
     # sample boundary points for covariance
-    import math
     xs, ys = np.array(geom.exterior.coords.xy[0]), np.array(geom.exterior.coords.xy[1])
     kmx = xs * 111.32 * math.cos(math.radians(c.y))
     kmy = ys * 110.574

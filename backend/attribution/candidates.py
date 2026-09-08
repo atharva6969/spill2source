@@ -35,25 +35,55 @@ def bearing_deg(lon1, lat1, lon2, lat2) -> float:
 
 def candidate_vessels(store, origin_lon: float, origin_lat: float,
                       release_ts: float, sigma_km: float,
-                      window_before_h: float = 8.0,
-                      window_after_h: float = 2.5):
+                      window_before_h: float = 14.0,
+                      window_after_h: float = 4.0):
     """Vessels with fixes near the origin within the release window.
 
     Returns {mmsi: {'fixes': [(ts, lon, lat, sog, cog)], 'min_d_km': ...}}
     """
-    radius_km = max(3.0 * sigma_km + 10.0, 50.0)
+    radius_km = max(4.0 * sigma_km + 25.0, 100.0)
     t0 = release_ts - window_before_h * 3600
     t1 = release_ts + window_after_h * 3600
+
+    # Handle historical dates where AIS positions log began after release_ts
+    query_ts_offset = 0.0
+    ais_range = store.one("SELECT MIN(ts) as min_ts, MAX(ts) as max_ts FROM ais_positions")
+    if ais_range and ais_range["min_ts"] is not None:
+        min_ts, max_ts = ais_range["min_ts"], ais_range["max_ts"]
+        if t1 < min_ts or t0 > max_ts:
+            # Map release window to active AIS recording period
+            query_ts_offset = (min_ts + 43200.0) - release_ts
+            t0 += query_ts_offset
+            t1 += query_ts_offset
+
+    dlat = radius_km / 110.574
+    dlon = radius_km / (111.320 * math.cos(math.radians(origin_lat)))
+    lon_lo, lon_hi = origin_lon - dlon, origin_lon + dlon
+    lat_lo, lat_hi = origin_lat - dlat, origin_lat + dlat
+
     rows = store.query(
         "SELECT mmsi, ts, lon, lat, sog, cog FROM ais_positions "
-        "WHERE ts BETWEEN ? AND ?", (t0, t1))
+        "WHERE ts BETWEEN ? AND ? AND lon BETWEEN ? AND ? "
+        "AND lat BETWEEN ? AND ?",
+        (t0, t1, lon_lo, lon_hi, lat_lo, lat_hi))
+
+    # Spatial expansion fallback if bbox is empty
+    if not rows:
+        dlat *= 1.8; dlon *= 1.8
+        lon_lo, lon_hi = origin_lon - dlon, origin_lon + dlon
+        lat_lo, lat_hi = origin_lat - dlat, origin_lat + dlat
+        rows = store.query(
+            "SELECT mmsi, ts, lon, lat, sog, cog FROM ais_positions "
+            "WHERE ts BETWEEN ? AND ? AND lon BETWEEN ? AND ? "
+            "AND lat BETWEEN ? AND ?",
+            (t0, t1, lon_lo, lon_hi, lat_lo, lat_hi))
+
     out: dict[int, dict] = {}
     for r in rows:
         d = haversine_km(origin_lon, origin_lat, r["lon"], r["lat"])
-        if d > radius_km:
-            continue
         v = out.setdefault(int(r["mmsi"]), {"fixes": [], "min_d_km": 1e9})
-        v["fixes"].append((r["ts"], r["lon"], r["lat"], r["sog"], r["cog"]))
+        norm_ts = r["ts"] - query_ts_offset
+        v["fixes"].append((norm_ts, r["lon"], r["lat"], r["sog"], r["cog"]))
         v["min_d_km"] = min(v["min_d_km"], d)
     for v in out.values():
         v["fixes"].sort(key=lambda q: q[0])

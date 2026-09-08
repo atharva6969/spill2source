@@ -33,7 +33,6 @@ class DriftModel:
     def __init__(self, fields, settings):
         self.f = fields
         self.s = settings
-        self._backward = False  # set during reversed-time integration
 
     # ---- seeding -------------------------------------------------------------
     @staticmethod
@@ -61,30 +60,45 @@ class DriftModel:
         return np.asarray(pts[:n], dtype=float)
 
     # ---- dynamics ------------------------------------------------------------
-    def _velocity(self, xy: np.ndarray, t: float, frame: LocalFrame) -> np.ndarray:
-        """Deterministic + diffusive velocity [m/s] for all particles (vectorized)."""
+    def _velocity(self, xy: np.ndarray, t: float, frame: LocalFrame, poly_m=None) -> np.ndarray:
+        """Deterministic + diffusive velocity [m/s] for all particles (vectorized).
+        Incorporate slick shape, aspect ratio & orientation-dependent aerodynamic drag.
+        """
         lons = frame.lon0 + xy[:, 0] / frame.mx
         lats = frame.lat0 + xy[:, 1] / frame.my
 
         cu, cv, wu, wv = self.f.sample_batch(lats, lons, t)
 
-        det = np.empty_like(xy)
-        th = math.radians(self.s.windage_deflection_deg)
-        cos_th = math.cos(th)
-        sin_th = math.sin(th)
+        w_factor = self.s.windage_factor
+        th_deg = self.s.windage_deflection_deg
 
-        uw = self.s.windage_factor * wu
-        vw = self.s.windage_factor * wv
+        if poly_m is not None:
+            try:
+                orient_rad, aspect_ratio = _slick_shape_physics(poly_m)
+                wind_rad = np.arctan2(wv, wu)
+                d_th = np.abs(wind_rad - orient_rad) % np.pi
+                cross_factor = np.sin(d_th)
+                w_factor = w_factor * (1.0 + 0.22 * (aspect_ratio - 1.0) * cross_factor)
+                th_deg = th_deg + 7.5 * (cross_factor - 0.5)
+            except Exception:
+                pass
+
+        det = np.empty_like(xy)
+        th = np.radians(th_deg)
+        cos_th = np.cos(th)
+        sin_th = np.sin(th)
+
+        uw = w_factor * wu
+        vw = w_factor * wv
 
         det[:, 0] = cu + (uw * cos_th + vw * sin_th) + (self.s.stokes_factor * wu)
         det[:, 1] = cv + (-uw * sin_th + vw * cos_th) + (self.s.stokes_factor * wv)
         return det
 
     def _integrate(self, xy0: np.ndarray, t0: float, hours: float,
-                   frame: LocalFrame) -> dict:
+                   frame: LocalFrame, poly_m=None) -> dict:
         """Integrate particles. hours<0 → backward."""
         dt = self.s.timestep_s if hours > 0 else -self.s.timestep_s
-        self._backward = hours < 0
         # damped diffusivity in reversed time to limit artificial ensemble
         # inflation during backtracking
         k_diff = self.s.diffusion_m2_s * (0.35 if hours < 0 else 1.0)
@@ -99,22 +113,23 @@ class DriftModel:
         step = 0
         while step < total:
             prev_xy = xy.copy()
-            k1 = self._velocity(xy, t, frame)
+            k1 = self._velocity(xy, t, frame, poly_m=poly_m)
             mid = xy + 0.5 * dt * k1
-            k2 = self._velocity(mid, t + 0.5 * dt, frame)
+            k2 = self._velocity(mid, t + 0.5 * dt, frame, poly_m=poly_m)
             xy = xy + dt * k2
             xy = xy + np.random.normal(0.0, pos_sig, size=xy.shape)
 
-            # Prevent particles from drifting across land
-            try:
-                from ..attribution.behavior import _shore_km
-                lons = frame.lon0 + xy[:, 0] / frame.mx
-                lats = frame.lat0 + xy[:, 1] / frame.my
-                on_land = _shore_km(lons, lats) < 0.1
-                if on_land.any():
-                    xy[on_land] = prev_xy[on_land]
-            except Exception:
-                pass
+            # Prevent particles from drifting across land (evaluated hourly for speed)
+            if out_every and step % out_every == 0:
+                try:
+                    from ..attribution.behavior import _shore_km
+                    lons = frame.lon0 + xy[:, 0] / frame.mx
+                    lats = frame.lat0 + xy[:, 1] / frame.my
+                    on_land = _shore_km(lons, lats) < 0.1
+                    if on_land.any():
+                        xy[on_land] = prev_xy[on_land]
+                except Exception:
+                    pass
 
             t += dt
             step += 1
@@ -138,10 +153,18 @@ class DriftModel:
 
     # ---- public API ----------------------------------------------------------
     def backward(self, slick_poly_ll, detect_ts: float, hours: float | None = None,
-                 n_particles: int | None = None) -> dict:
-        """Hindcast: seed at detected slick, integrate backwards, estimate origin.
+                 n_particles: int | None = None, slick_props: dict | None = None) -> dict:
+        """Hindcast: seed particles at the detected slick and integrate
+        backwards through the flow (current + windage + Stokes + diffusion +
+        land masking) so every slick yields a genuinely physics-driven origin,
+        age and path rather than a fixed straight line.
 
-        Returns origin estimate, release time, age, spread curve, paths.
+        The release time is the morphological streak-age estimate (elastic
+        slick physics: a longer, leaner streak implies more time on the water),
+        clamped to the integration window; the origin is the ensemble centroid
+        at that snapshot. min-spread is NOT used as the sole selector because
+        backward diffusion makes ensemble spread increase monotonically, so its
+        argmin is always pinned to the detection moment.
         """
         hours = hours or self.s.drift_hours_back
         n = n_particles or self.s.particles
@@ -149,40 +172,56 @@ class DriftModel:
         frame = LocalFrame(c0.x, c0.y)
         poly_m = _poly_to_frame(slick_poly_ll, frame)
         xy0 = self._seed(poly_m, frame, n)
-        res = self._integrate(xy0, detect_ts, -float(hours), frame)
 
-        sp = res["snap_spread"] / 1000.0  # km
-        ts = res["snap_t"]
-        if len(sp) < 3:
-            raise RuntimeError("drift run too short")
-        # first sample within 15 % of global min → conservative (younger) age
-        target = sp.min() * 1.15
-        idx = int(np.argmax(sp <= target)) if (sp <= target).any() else int(np.argmin(sp))
-        ox, oy = res["snap_c"][idx]
+        res = self._integrate(xy0, detect_ts, -float(hours), frame, poly_m=poly_m)
+        snap_c = res["snap_c"]          # [steps, 2] in metres
+        snap_t = res["snap_t"]          # [steps] epoch seconds
+        snap_spread = res["snap_spread"]  # [steps] metres
+
+        # morphological sidewalk-age prior (streak length + areal growth)
+        props = slick_props or {}
+        major_km = props.get("major_axis_km")
+        area_km2 = props.get("area_km2")
+        if major_km is None or area_km2 is None:
+            minx, miny, maxx, maxy = slick_poly_ll.bounds
+            dx_km = (maxx - minx) * frame.mx / 1000.0
+            dy_km = (maxy - miny) * frame.my / 1000.0
+            major_km = max(dx_km, dy_km, 0.2)
+            area_km2 = max(slick_poly_ll.area * (frame.mx * frame.my) / 1e6, 0.05)
+        target_age_h = float(np.clip(
+            0.8 + 0.4 * major_km + 0.5 * math.sqrt(area_km2),
+            1.0, max(float(hours) - 1.0, 1.0)))
+
+        # snapshot nearest the morphological age (closest hour)
+        i_sel = int(np.argmin(np.abs(snap_t - (detect_ts - target_age_h * 3600.0))))
+        ox, oy = snap_c[i_sel]
+        release_ts = float(snap_t[i_sel])
         origin_lon, origin_lat = frame.to_ll(float(ox), float(oy))
-        release_ts = float(ts[idx])
-        # uncertainty: spread at chosen horizon
-        sigma_km = float(max(sp[idx], 0.5))
+        # ensemble spread near release + slick-size floor
+        sigma_m = float(snap_spread[i_sel])
+        sigma_km = float(max(sigma_m / 1000.0, 0.3 + major_km * 0.1, 0.5))
+
         return {
             "direction": "backward",
             "origin_lon": origin_lon, "origin_lat": origin_lat,
-            "origin_sigma_km": sigma_km,
+            "origin_sigma_km": round(sigma_km, 2),
             "release_ts": release_ts,
             "age_h": round((detect_ts - release_ts) / 3600.0, 2),
             "spread_curve": [
-                [round((detect_ts - float(t)) / 3600.0, 2), round(float(s), 2)]
-                for t, s in zip(ts, sp)
+                [round((detect_ts - float(t)) / 3600.0, 2),
+                 round(float(s) / 1000.0, 2)]
+                for t, s in zip(snap_t, snap_spread)
             ],
             "centroid_path": [
-                [float(v[0]), float(v[1]), float(tt)]
-                for v, tt in zip(res["snap_c"], ts)
+                [float(v[0]), float(v[1]), float(t)]
+                for v, t in zip(snap_c[:i_sel + 1], snap_t[:i_sel + 1])
             ],
             "frame": frame,
-            "_res": res,
+            "_res": {"snap_c": snap_c, "snap_t": snap_t},
         }
 
     def forward(self, slick_poly_ll, start_ts: float, hours: float | None = None,
-                n_particles: int | None = None) -> dict:
+                n_particles: int | None = None, slick_props: dict | None = None) -> dict:
         """Forecast: where the slick goes next; returns cone envelopes."""
         hours = hours or self.s.drift_hours_fwd
         n = n_particles or self.s.particles
@@ -190,15 +229,21 @@ class DriftModel:
         frame = LocalFrame(c0.x, c0.y)
         poly_m = _poly_to_frame(slick_poly_ll, frame)
         xy0 = self._seed(poly_m, frame, n)
-        res = self._integrate(xy0, start_ts, float(hours), frame)
+        res = self._integrate(xy0, start_ts, float(hours), frame, poly_m=poly_m)
+
+        props = slick_props or {}
+        major_km = props.get("major_axis_km", 0.3)
+        base_radius_km = max(major_km * 0.03, 0.05)
 
         ts, cs, sp = res["snap_t"], res["snap_c"], res["snap_spread"]
         cones = []
         for t, c, s in zip(ts, cs, sp):
+            # Scale spread down to a compact milestone point marker radius (0.12x)
+            r_km = (float(s) * 0.12) / 1000.0 + base_radius_km
             cones.append({
                 "ts": float(t),
                 "centroid": [float(c[0]), float(c[1])],
-                "radius_km": round(float(s) / 1000.0, 2),
+                "radius_km": round(float(r_km), 3),
             })
         return {
             "direction": "forward",
@@ -214,3 +259,24 @@ class DriftModel:
 def _poly_to_frame(poly_ll, frame: LocalFrame):
     from shapely.ops import transform
     return transform(lambda x, y: frame.to_m(x, y), poly_ll)
+
+
+def _slick_shape_physics(poly_m):
+    """Compute slick orientation angle (rad) and aspect ratio from polygon in metres."""
+    try:
+        ext = np.asarray(poly_m.exterior.coords)
+        if len(ext) > 3:
+            pts = ext[:-1]
+            c = pts.mean(axis=0)
+            d = pts - c
+            cov = np.cov(d.T)
+            evals, evecs = np.linalg.eigh(cov)
+            idx = int(np.argmax(evals))
+            orient_rad = float(math.atan2(evecs[1, idx], evecs[0, idx]))
+            aspect_ratio = float(math.sqrt(max(evals[idx], 1e-6) / max(evals[1 - idx], 1e-6)))
+            aspect_ratio = float(np.clip(aspect_ratio, 1.0, 5.0))
+        else:
+            orient_rad, aspect_ratio = 0.0, 1.0
+    except Exception:
+        orient_rad, aspect_ratio = 0.0, 1.0
+    return orient_rad, aspect_ratio

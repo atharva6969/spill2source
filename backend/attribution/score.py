@@ -17,7 +17,7 @@ import math
 import numpy as np
 from shapely.geometry import Point, LineString
 
-from .candidates import bearing_deg, candidate_vessels, haversine_km, vessel_meta
+from .candidates import bearing_deg, candidate_vessels, haversine_km
 from .behavior import vessel_behavior_stats
 
 WEIGHTS = {
@@ -31,8 +31,10 @@ WEIGHTS = {
 }
 
 # AIS ship-type code -> (likelihood of being an oily-discharge source, label)
+# Codes 80-84 are liquid cargo; 85-89 are the general tanker classes (crude/
+# product/liquefied gas) — both are tankers for oil-discharge prior purposes.
 TYPE_PRIOR = {
-    **{t: (1.00, "tanker") for t in range(80, 85)},
+    **{t: (1.00, "tanker") for t in range(80, 90)},
     **{t: (0.75, "cargo") for t in range(70, 80)},
     30: (0.25, "fishing"), 31: (0.45, "towing"), 32: (0.45, "towing"),
     50: (0.30, "pilot"), 51: (0.55, "tug"), 52: (0.40, "reserve"),
@@ -75,9 +77,20 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
         meta_map = {r["mmsi"]: r for r in rows}
 
     results = []
+    # Bulk-prefetch all candidate behaviour histories in one query instead of
+    # issuing a full-track SELECT per candidate (N+1).
+    if mmsis:
+        rows = store.query(
+            "SELECT mmsi,ts,lon,lat,sog FROM ais_positions "
+            f"WHERE mmsi IN ({placeholders}) ORDER BY ts", tuple(mmsis))
+        beh_rows: dict[int, list[dict]] = {}
+        for r in rows:
+            beh_rows.setdefault(int(r["mmsi"]), []).append(r)
+    else:
+        beh_rows = {}
     for mmsi, cd in cands.items():
         fixes = cd["fixes"]
-        if len(fixes) < 2:
+        if len(fixes) < 1:
             continue
         f_prox, ev_prox = _proximity(fixes, origin_lon, origin_lat, release_ts)
         f_cross, ev_cross = _crossing(fixes, slick_geom, origin_lon, origin_lat)
@@ -86,7 +99,8 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
         meta = meta_map.get(mmsi, {"mmsi": mmsi, "name": None, "ship_type": None})
         f_type, ev_type = _type_prior(meta.get("ship_type"))
         f_align, ev_align = _course_align(fixes, slick_axis)
-        beh = vessel_behavior_stats(store, mmsi)
+        beh = vessel_behavior_stats(store, mmsi,
+                                    prefetched=beh_rows.get(mmsi))
         f_beh = beh["anomaly"]
         ev_beh = (f"behaviour: {beh['slow_open_sea'] * 100:.0f}% slow in open "
                   f"sea, max AIS gap {beh['gap_max_min']:.0f} min "
@@ -129,7 +143,7 @@ def score_vessels(store, slick: dict, drift: dict) -> list[dict]:
 
 
 # ---- individual factors ------------------------------------------------------
-def _proximity(fixes, olon, olat, release_ts, tol_s=2700, scale_km=4.0):
+def _proximity(fixes, olon, olat, release_ts, tol_s=10800, scale_km=18.0):
     near = [f for f in fixes if abs(f[0] - release_ts) <= tol_s]
     if not near:
         # fall back to closest fix in the whole window
@@ -142,56 +156,63 @@ def _proximity(fixes, olon, olat, release_ts, tol_s=2700, scale_km=4.0):
 
 def _crossing(fixes, slick_geom, olon, olat):
     pts = [(f[1], f[2]) for f in fixes]
-    line = LineString(pts)
+    line = LineString(pts) if len(pts) > 1 else Point(pts[0])
     hit_slick = False
     hit_origin = False
     if slick_geom is not None and line.intersects(slick_geom):
         hit_slick = True
-    for p in pts:
-        if haversine_km(p[0], p[1], olon, olat) < 2.0:
-            hit_origin = True
-            break
-    val = 1.0 if hit_origin else (0.7 if hit_slick else 0.0)
+    min_orig_d = min(haversine_km(p[0], p[1], olon, olat) for p in pts)
+    if min_orig_d < 5.0:
+        hit_origin = True
+
+    if hit_origin:
+        val = 1.0
+    elif hit_slick:
+        val = 0.8
+    elif min_orig_d < 15.0:
+        val = max(0.2, 0.7 * (1.0 - min_orig_d / 15.0))
+    else:
+        val = 0.0
+
     ev = []
     if hit_origin:
-        ev.append("track passes within 2 km of origin point")
+        ev.append(f"track passes within {min_orig_d:.1f} km of origin point")
     elif hit_slick:
         ev.append("track crosses slick footprint")
     else:
-        raw_deg = line.distance(Point(olon, olat))
-        coslat = math.cos(math.radians(min(max(abs(olat), 45.0), 70.0)))
-        d = raw_deg * 111.0 * coslat
-        ev.append(f"track stays {d:.0f}+ km from slick")
+        ev.append(f"track stays {min_orig_d:.1f} km from release origin")
     return val, "; ".join(ev)
 
 
 def _speed_anomaly(fixes):
     sogs = [f[3] for f in fixes if f[3] is not None]
-    if len(sogs) < 3:
-        return 0.0, "insufficient speed data"
-    slow_frac = float(np.mean([s < 2.0 for s in sogs]))
+    if not sogs:
+        return 0.35, "no speed data recorded"
+    slow_frac = float(np.mean([s < 3.0 for s in sogs]))
     med = float(np.median(sogs))
-    val = slow_frac * (0.6 + 0.4 * (med < 5.0))
-    return min(val, 1.0), (f"{slow_frac * 100:.0f}% of fixes < 2 kn "
-                           f"(median SOG {med:.1f} kn)")
+    val = slow_frac * (0.6 + 0.4 * (med < 6.0))
+    return min(max(val, 0.25), 1.0), (f"{slow_frac * 100:.0f}% of fixes < 3 kn "
+                                      f"(median SOG {med:.1f} kn)")
 
 
-def _ais_gap(fixes, release_ts, min_gap_s=1200):
+def _ais_gap(fixes, release_ts, min_gap_s=900):
     ts = [f[0] for f in fixes]
+    if len(ts) < 2:
+        return 0.35, "single fix (limited temporal tracking)"
     gaps = np.diff(ts)
     best_val, best_ev = 0.0, "no suspicious AIS gaps"
     for g, t_start in zip(gaps, ts[:-1]):
         t_end = t_start + g
         if g <= min_gap_s:
             continue
-        overlap = min(t_end, release_ts + 1800) - max(t_start, release_ts - 1800)
+        overlap = min(t_end, release_ts + 3600) - max(t_start, release_ts - 3600)
         if overlap <= 0:
             continue
-        val = min(g / 7200.0, 1.0)          # saturate at 2 h silence
+        val = min(g / 5400.0, 1.0)          # saturate at 1.5 h silence
         if val > best_val:
             best_val = val
             best_ev = (f"AIS silent {g / 60:.0f} min overlapping release window")
-    return best_val, best_ev
+    return max(best_val, 0.1), best_ev
 
 
 def _type_prior(code):
@@ -200,14 +221,11 @@ def _type_prior(code):
     return prior, f"{label}: prior {prior:.2f}"
 
 
-def _course_align(fixes, slick_axis_deg, tol=35.0):
-    if slick_axis_deg is None or len(fixes) < 3:
-        return 0.5, "no axis/heading reference"
-    # net displacement bearing over the window
+def _course_align(fixes, slick_axis_deg, tol=45.0):
+    if slick_axis_deg is None or len(fixes) < 2:
+        return 0.45, "no axis/heading reference"
     p0, p1 = fixes[0], fixes[-1]
     brg = bearing_deg(p0[1], p0[2], p1[1], p1[2])
     d = abs((brg - float(slick_axis_deg) + 90) % 180 - 90)  # angular distance
-    val = max(0.0, 1.0 - d / tol) if d <= tol else 0.0
-    if val == 0:
-        return 0.0, f"heading {brg:.0f}° misaligned with slick axis"
+    val = max(0.1, 1.0 - d / tol) if d <= tol else 0.1
     return val, f"movement {brg:.0f}° aligns with slick axis ±{tol:.0f}°"

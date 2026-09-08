@@ -6,8 +6,12 @@ spatial + linear temporal interpolation.
 """
 from __future__ import annotations
 
+import logging
 import math
+
 import numpy as np
+
+_log = logging.getLogger("fields")
 
 
 class FieldSet:
@@ -36,11 +40,22 @@ class FieldSet:
     def _it(self, t: float) -> tuple[int, float]:
         k = np.searchsorted(self.times, t) - 1
         if k < 0:
+            self._warn_clamp(t)
             return 0, 0.0
         if k >= len(self.times) - 1:
+            self._warn_clamp(t)
             return len(self.times) - 2, 1.0
         f = (t - self.times[k]) / (self.times[k + 1] - self.times[k])
         return int(k), min(max(f, 0.0), 1.0)
+
+    def _warn_clamp(self, t: float) -> None:
+        """Surface when a requested epoch falls outside the loaded field window
+        (the solver silently freezes/stretches edge forcing otherwise)."""
+        if getattr(self, "_warned_ts", None) is None:
+            self._warned_ts = (t, self.times[0], self.times[-1])
+            _log.warning(
+                "drift time %.1f outside met window [%.1f, %.1f] - "
+                "using clamped edge forcing", t, self.times[0], self.times[-1])
 
     @staticmethod
     def _bilinear(field: np.ndarray, iy, fy, ix, fx, it, ft) -> float:
@@ -74,8 +89,10 @@ class FieldSet:
         """
         k = np.searchsorted(self.times, t) - 1
         if k < 0:
+            self._warn_clamp(t)
             it, ft = 0, 0.0
         elif k >= len(self.times) - 1:
+            self._warn_clamp(t)
             it, ft = len(self.times) - 2, 1.0
         else:
             it = int(k)

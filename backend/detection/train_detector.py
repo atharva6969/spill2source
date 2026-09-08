@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from backend.detection.features import patch_features  # noqa: E402
-from backend.detection.classify import MODEL_PATH      # noqa: E402
+from backend.detection.classify import FEATURE_ORDER   # noqa: E402
 
 
 def _load_patch(p: Path) -> tuple[np.ndarray, np.ndarray]:
@@ -63,11 +63,9 @@ def main() -> None:
         return
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import cross_val_score
+    from backend.config import settings
     import joblib
-    X = [[float(f.get(k) or 999) for k in
-          ("area_px", "complexity", "contrast_db", "edge_sharpness",
-           "homogeneity", "elongation", "dark_fraction_local",
-           "dist_land_km")] for f in feats]
+    X = [[float(f.get(k) or 999) for k in FEATURE_ORDER] for f in feats]
     y = np.array(labels)
     model = RandomForestClassifier(n_estimators=300, min_samples_leaf=3,
                                    class_weight="balanced", random_state=7)
@@ -75,8 +73,9 @@ def main() -> None:
                          scoring="f1")
     print("CV F1:", np.round(cv, 3), "mean", round(cv.mean(), 3))
     model.fit(X, y)
-    joblib.dump(model, MODEL_PATH)
-    print("saved ->", MODEL_PATH)
+    out = settings.data_dir / "model_rf.joblib"
+    joblib.dump(model, out)
+    print("saved ->", out)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ Combines three real sources:
 """
 from __future__ import annotations
 
-import math
 import time
 
 import numpy as np
@@ -161,6 +160,16 @@ def history_stats(store, mmsi: int) -> dict:
             run_start = None
         elif not moving and run_start is None:
             run_start = i
+    # flush trailing stop that extends to end of track
+    if run_start is not None:
+        dur = ts[-1] - ts[run_start]
+        if dur >= 900:
+            stops.append({
+                "lon": float(np.nanmean(lon[run_start:])),
+                "lat": float(np.nanmean(lat[run_start:])),
+                "minutes": round(dur / 60.0),
+                "start": float(ts[run_start]),
+            })
     stops = sorted(stops, key=lambda s: -s["minutes"])[:8]
 
     gaps = np.diff(ts)

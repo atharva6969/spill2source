@@ -105,6 +105,7 @@ async def vessel_details(mmsi: int):
 # ---- scenes ---------------------------------------------------------------------
 @app.get("/api/scenes")
 async def scenes(limit: int = 40):
+    limit = min(max(limit, 1), 500)
     rows = store.query(
         "SELECT * FROM scenes ORDER BY sensed_start DESC LIMIT ?", (limit,))
     for r in rows:
@@ -139,11 +140,25 @@ async def slick_detail(slick_id: int):
     row = store.one("SELECT * FROM slicks WHERE id=?", (slick_id,))
     if not row:
         raise HTTPException(404, "unknown slick")
-    out = _slick_row(row)
     bw = store.one("SELECT * FROM drift_runs WHERE slick_id=? AND "
                    "direction='backward' ORDER BY id DESC LIMIT 1", (slick_id,))
     fw = store.one("SELECT * FROM drift_runs WHERE slick_id=? AND "
                    "direction='forward' ORDER BY id DESC LIMIT 1", (slick_id,))
+    analysis_error: str | None = None
+    if not bw or not fw:
+        try:
+            res = await system.analyze_slick(slick_id)
+            if not res.get("ok"):
+                analysis_error = res.get("reason", "analysis failed")
+            bw = store.one("SELECT * FROM drift_runs WHERE slick_id=? AND "
+                           "direction='backward' ORDER BY id DESC LIMIT 1", (slick_id,))
+            fw = store.one("SELECT * FROM drift_runs WHERE slick_id=? AND "
+                           "direction='forward' ORDER BY id DESC LIMIT 1", (slick_id,))
+            row = store.one("SELECT * FROM slicks WHERE id=?", (slick_id,))
+        except Exception as exc:
+            analysis_error = str(exc)[:300]
+    out = _slick_row(row)
+    out["analysis_error"] = analysis_error
     for tag, run in (("backward", bw), ("forward", fw)):
         if run:
             run["spread_curve"] = json.loads(run["spread_curve"]) \
@@ -157,13 +172,31 @@ async def slick_detail(slick_id: int):
                       "WHERE slick_id=? ORDER BY rank LIMIT 15", (slick_id,))
     names = {v["mmsi"]: v for v in store.query("SELECT mmsi,name,ship_type,length,width,imo,dest,draught FROM vessels")}
     for s in sus:
-        s["factors"] = json.loads(s["factors"])
+        s["factors"] = json.loads(s["factors"]) if isinstance(s["factors"], str) else s["factors"]
         meta = names.get(s["mmsi"], {})
         s["name"] = s.get("name") or meta.get("name")
         s["ship_type"] = meta.get("ship_type")
         s["length"] = meta.get("length"); s["width"] = meta.get("width")
         s["imo"] = meta.get("imo"); s["dest"] = meta.get("dest")
         s["draught"] = meta.get("draught")
+        prox_ev = s["factors"].get("proximity", {}).get("evidence", "")
+        if "closest approach" in prox_ev:
+            try:
+                import re
+                m = re.search(r"closest approach ([\d\.]+) km", prox_ev)
+                if m:
+                    s["min_dist_km"] = float(m.group(1))
+            except Exception:
+                pass
+        beh_ev = s["factors"].get("behavior_prior", {}).get("evidence", "")
+        if "fixes on record" in beh_ev:
+            try:
+                import re
+                m = re.search(r"\((\d+) fixes on record\)", beh_ev)
+                if m:
+                    s["n_fixes"] = int(m.group(1))
+            except Exception:
+                pass
     out["suspects"] = sus
     return out
 
@@ -213,6 +246,7 @@ async def risk_grid(min_p: float = 0.0, limit: int = 4000):
     """Risk-probability cells as a GeoJSON FeatureCollection."""
     if not (settings.data_dir / "risk_model.joblib").exists():
         raise HTTPException(404, "risk model not trained yet")
+    limit = min(max(limit, 1), 20000)
     rows = store.query(
         "SELECT lon0,lat0,lon1,lat1,p FROM risk_grid WHERE p>=? "
         "ORDER BY p DESC LIMIT ?", (min_p, limit))
@@ -232,6 +266,7 @@ async def risk_grid(min_p: float = 0.0, limit: int = 4000):
 # ---- events ------------------------------------------------------------------------
 @app.get("/api/events")
 async def events(limit: int = 50):
+    limit = min(max(limit, 1), 500)
     rows = store.query("SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,))
     for r in rows:
         r["payload"] = json.loads(r["payload"]) if r["payload"] else None

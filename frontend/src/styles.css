@@ -1763,6 +1763,7 @@ body {
   gap: 10px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1775,7 +1776,8 @@ body {
   border-radius: var(--radius-md);
   overflow: hidden;
   transition: all var(--transition-fast);
-
+  flex-shrink: 0;
+  min-height: 70px;
 }
 
 .suspect-card:hover {

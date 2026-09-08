@@ -50,7 +50,9 @@ def find_measurement(safe_dir: Path) -> tuple[Path, str]:
 
 def _calibration_lut(safe_dir: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Parse annotation CAL xml -> (lines[], pixels[], sigmaNought LUT rows)."""
-    cals = list(safe_dir.rglob("*CAL*.xml"))
+    # Sentinel-1 annotation calibration files are lowercase (calibration-s1-…xml).
+    # Match case-insensitively so detection works on case-sensitive filesystems.
+    cals = [p for p in safe_dir.rglob("*.xml") if "cal" in p.name.lower()]
     if not cals:
         raise FileNotFoundError("calibration xml missing")
     root = ET.parse(cals[0]).getroot()

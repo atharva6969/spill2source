@@ -36,7 +36,7 @@ class Settings:
 
     drift_hours_back: int = int(os.getenv("DRIFT_HOURS_BACK", "18"))
     drift_hours_fwd: int = int(os.getenv("DRIFT_HOURS_FWD", "24"))
-    particles: int = int(os.getenv("PARTICLES", "600"))
+    particles: int = int(os.getenv("PARTICLES", "100"))
 
     data_dir: Path = ROOT / os.getenv("DATA_DIR", "data")
     db_path: Path = ROOT / os.getenv("DB_PATH", "data/app.db")
